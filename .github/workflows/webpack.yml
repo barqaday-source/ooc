@@ -16,11 +16,10 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'  # <-- قمنا بتغييرها هنا إلى 22
 
       - name: Build Project
         run: |
