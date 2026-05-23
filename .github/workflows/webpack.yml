@@ -14,13 +14,14 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '21' }
 
-      - name: Build and Sync
+      - name: Setup Android Environment
         run: |
           npm install
+          npm install @capacitor/android @capacitor/cli @codetrix-studio/capacitor-google-auth
           npm run build
-          npx cap add android || true
+          npx cap add android
           
-          # حقن الإعدادات في Manifest (الأذونات ولوحة المفاتيح)
+          # 1. حقن الأذونات في Manifest
           sed -i '/<application/i \
           <uses-permission android:name="android.permission.INTERNET" />\
           <uses-permission android:name="android.permission.RECORD_AUDIO" />\
@@ -28,8 +29,13 @@ jobs:
           <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\
           <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' android/app/src/main/AndroidManifest.xml
           
+          # 2. ضبط الكيبورد وشاشة الموبايل
           sed -i 's/android:windowSoftInputMode=".*"/android:windowSoftInputMode="adjustResize"/' android/app/src/main/AndroidManifest.xml || \
           sed -i '/android:name=".MainActivity"/a \            android:windowSoftInputMode="adjustResize"' android/app/src/main/AndroidManifest.xml
+
+          # 3. تعديل ملف الـ Java ليدعم تسجيل دخول جوجل الأصلي
+          sed -i '/import com.getcapacitor.BridgeActivity;/a import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth;' android/app/src/main/java/*/MainActivity.java
+          sed -i '/super.onCreate(savedInstanceState);/i \    registerPlugin(GoogleAuth.class);' android/app/src/main/java/*/MainActivity.java
 
           npx cap sync android
 
