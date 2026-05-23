@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build and Release APK
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -22,14 +22,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install and Build Web
+      - name: Build and Sync
         run: |
           npm install
           npm run build
-
-      - name: Add Android Platform
-        run: |
-          npm install @capacitor/android @capacitor/cli
+          npm install @capacitor/android@latest @capacitor/cli@latest
           npx cap add android
           npx cap sync android
 
@@ -42,5 +39,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
