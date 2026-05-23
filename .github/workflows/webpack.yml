@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Pro Android APK
 
 on:
   push:
@@ -8,41 +8,39 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: 'package.json' }
+      - uses: actions/setup-java@v4
+        with: { distribution: 'temurin', java-version: '21' }
 
-      # 1. إعداد بيئة النود تلقائياً بناءً على ما في package.json
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: 'package.json'
-
-      # 2. إعداد بيئة الجافا المتوافقة مع Gradle 8.x (الإصدار 21)
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      # 3. بناء المشروع وتجهيز الـ Android Platform
       - name: Build and Sync
         run: |
           npm install
           npm run build
-          npm install @capacitor/android@latest @capacitor/cli@latest
-          npx cap add android
+          npx cap add android || true
+          
+          # حقن الإعدادات في Manifest (الأذونات ولوحة المفاتيح)
+          sed -i '/<application/i \
+          <uses-permission android:name="android.permission.INTERNET" />\
+          <uses-permission android:name="android.permission.RECORD_AUDIO" />\
+          <uses-permission android:name="android.permission.CAMERA" />\
+          <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\
+          <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' android/app/src/main/AndroidManifest.xml
+          
+          sed -i 's/android:windowSoftInputMode=".*"/android:windowSoftInputMode="adjustResize"/' android/app/src/main/AndroidManifest.xml || \
+          sed -i '/android:name=".MainActivity"/a \            android:windowSoftInputMode="adjustResize"' android/app/src/main/AndroidManifest.xml
+
           npx cap sync android
 
-      # 4. بناء الـ APK بـ Gradle
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      # 5. رفع الملف الناتج للتحميل المباشر
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: app-release
           path: android/app/build/outputs/apk/debug/app-debug.apk
