@@ -1,4 +1,4 @@
-name: Build and Release APK
+name: Build Android APK
 
 on:
   push:
@@ -11,17 +11,20 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # 1. إعداد بيئة النود تلقائياً بناءً على ما في package.json
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version-file: 'package.json'
 
+      # 2. إعداد بيئة الجافا المتوافقة مع Gradle 8.x (الإصدار 21)
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
+      # 3. بناء المشروع وتجهيز الـ Android Platform
       - name: Build and Sync
         run: |
           npm install
@@ -30,14 +33,16 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      # 4. بناء الـ APK بـ Gradle
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
+      # 5. رفع الملف الناتج للتحميل المباشر
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: app-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
