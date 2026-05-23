@@ -19,29 +19,16 @@ jobs:
           npm install --legacy-peer-deps
           npm install @capacitor/android @capacitor/cli @codetrix-studio/capacitor-google-auth --legacy-peer-deps
           npm run build
-          
           rm -rf android
           npx cap add android
           sleep 10
-          
-          # 1. تحديث الـ SDK
           sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' android/app/build.gradle
           sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
-
-          # 2. حقن الأذونات وخدمات الـ Offline (لحفظ البيانات)
           sed -i '/<uses-permission/d' android/app/src/main/AndroidManifest.xml
-          sed -i '/<application/i \
-          <uses-permission android:name="android.permission.INTERNET" />\
-          <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\
-          <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />\
-          <uses-permission android:name="android.permission.RECORD_AUDIO" />\
-          <uses-permission android:name="android.permission.CAMERA" />' android/app/src/main/AndroidManifest.xml
-
-          # 3. تعديل الجافا لتسجيل دخول Native
+          sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n<uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.CAMERA" />' android/app/src/main/AndroidManifest.xml
           find android/app/src/main/java -name "MainActivity.java" -exec sed -i '/import com.getcapacitor.BridgeActivity;/a import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth;' {} +
-          find android/app/src/main/java -name "MainActivity.java" -exec sed -i '/public class MainActivity extends BridgeActivity {/a \  @Override\n  public void onCreate(Bundle savedInstanceState) {\n    registerPlugin(GoogleAuth.class);\n    super.onCreate(savedInstanceState);\n  }' {} +
-          
+          find android/app/src/main/java -name "MainActivity.java" -exec sed -i '/public class MainActivity extends BridgeActivity {/a @Override\npublic void onCreate(Bundle savedInstanceState) {\nregisterPlugin(GoogleAuth.class);\nsuper.onCreate(savedInstanceState);\n}' {} +
           npx cap sync android
 
       - name: Build APK
