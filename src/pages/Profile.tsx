@@ -9,28 +9,30 @@ import { supabase } from "@/lib/supabase";
 import { uploadUserAvatar, compressImage } from "@/lib/upload";
 import AppShell from "@/components/AppShell";
 import UserAvatar from "@/components/UserAvatar";
-import { Camera, Loader2, Pencil, Save, Shield, SlidersHorizontal, Users } from "lucide-react";
+import { Camera, Loader2, Pencil, Save, Shield, SlidersHorizontal, Users, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Profile() {
   const navigate = useNavigate();
   const { user, profile, isAdmin, refreshProfile } = useAuth();
   const [editing, setEditing] = useState(false);
-  const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
-  const [bio, setBio] = useState(profile?.bio ?? "");
+  const [displayName, setDisplayName] = useState(profile?.display_name?? "");
+  const [bio, setBio] = useState(profile?.bio?? "");
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
   const actions = [
     { label: "الأصدقاء", icon: Users, onClick: () => navigate("/friends") },
     { label: "الإعدادات", icon: SlidersHorizontal, onClick: () => navigate("/dashboard") },
-    ...(isAdmin ? [{ label: "لوحة الأدمن", icon: Shield, onClick: () => navigate("/admin") }] : []),
+   ...(isAdmin? [{ label: "لوحة الأدمن", icon: Shield, onClick: () => navigate("/admin") }] : []),
   ];
 
   const handleAvatarPick = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file || !user) return;
+    if (!file ||!user) return;
     if (!file.type.startsWith("image/")) {
       toast.error("اختر ملف صورة فقط");
       return;
@@ -39,11 +41,11 @@ export default function Profile() {
     try {
       const compressed = await compressImage(file, 512, 0.85);
       const { url, error } = await uploadUserAvatar(user.id, compressed);
-      if (error || !url) throw error || new Error("فشل الرفع");
+      if (error ||!url) throw error || new Error("فشل الرفع");
       const { error: updErr } = await supabase
-        .from("profiles")
-        .update({ avatar_url: url })
-        .eq("id", user.id);
+       .from("profiles")
+       .update({ avatar_url: url })
+       .eq("id", user.id);
       if (updErr) throw updErr;
       await refreshProfile();
       toast.success("تم تحديث الصورة");
@@ -66,6 +68,36 @@ export default function Profile() {
     else { toast.success("تم الحفظ"); await refreshProfile(); setEditing(false); }
   };
 
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      "تحذير: سيتم حذف حسابك وجميع بياناتك نهائياً. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد؟"
+    );
+    if (!confirmed ||!user) return;
+
+    const doubleConfirm = window.prompt(
+      'للتأكيد اكتب "حذف" في المربع أدناه:'
+    );
+    if (doubleConfirm!== "حذف") {
+      toast.info("تم إلغاء عملية الحذف");
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      // لازم تكون منشئ الدالة في Supabase SQL Editor
+      const { error } = await supabase.rpc('delete_user_account');
+      if (error) throw error;
+
+      await supabase.auth.signOut();
+      toast.success("تم حذف حسابك بنجاح");
+      navigate("/");
+    } catch (err) {
+      toast.error("فشل حذف الحساب", { description: (err as Error).message });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <AppShell>
       <div className="anim-fade-in">
@@ -84,7 +116,7 @@ export default function Profile() {
               className="absolute -bottom-1 -left-1 w-9 h-9 bg-foreground text-background rounded-2xl flex items-center justify-center shadow-elev disabled:opacity-50"
               aria-label="تغيير الصورة"
             >
-              {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+              {uploadingAvatar? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
             </button>
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={handleAvatarPick} />
           </div>
@@ -105,7 +137,7 @@ export default function Profile() {
 
         {/* Body */}
         <div className="p-5 space-y-4">
-          {!editing ? (
+          {!editing? (
             <>
               <div className="glass-card rounded-[2rem] p-5 shadow-glassy">
                 <p className="text-xs text-muted-foreground mb-1">النبذة</p>
@@ -126,6 +158,21 @@ export default function Profile() {
                   </button>
                 ))}
               </div>
+
+              {/* Danger Zone */}
+              <div className="pt-4 mt-6 border-t border-border/30">
+                <p className="text-xs text-muted-foreground mb-3 px-1">المنطقة الخطرة</p>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleting}
+                  className="w-full rounded-[1.4rem] glass-card shadow-glassy flex items-center gap-3 p-4 active:scale-[0.98] transition font-bold text-right text-red-500 border border-red-500/20 hover:bg-red-500/5 disabled:opacity-50"
+                >
+                  <span className="w-11 h-11 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+                    {deleting? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                  </span>
+                  <span className="text-sm flex-1">حذف الحساب نهائياً</span>
+                </button>
+              </div>
             </>
           ) : (
             <div className="space-y-3 glass-card rounded-[2rem] p-4">
@@ -145,7 +192,7 @@ export default function Profile() {
                   className="flex-1 h-12 rounded-2xl glass font-semibold">إلغاء</button>
                 <button onClick={handleSave} disabled={saving}
                   className="flex-1 h-12 rounded-2xl bg-foreground text-background font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> حفظ</>}
+                  {saving? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> حفظ</>}
                 </button>
               </div>
             </div>

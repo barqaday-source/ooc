@@ -25,7 +25,6 @@ import Privacy from "./pages/Privacy.tsx";
 import UserProfile from "./pages/UserProfile.tsx";
 import Admin from "./pages/Admin.tsx";
 import AdminSettings from "./pages/AdminSettings.tsx";
-import AdminThemes from "./pages/AdminThemes.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -34,38 +33,37 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <AppSettingsProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner position="top-center" dir="rtl" />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/welcome" element={<Welcome />} />
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
+        <TooltipProvider>
+          <Toaster />
+          <Sonner position="top-center" dir="rtl" />
+          <BrowserRouter>
+            <AuthProvider>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/welcome" element={<Welcome />} />
+                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
-              <Route path="/chat" element={<ProtectedRoute><ChatList /></ProtectedRoute>} />
-              <Route path="/chat/:roomId" element={<ProtectedRoute><ChatRoom /></ProtectedRoute>} />
-              <Route path="/rooms" element={<ProtectedRoute><Rooms /></ProtectedRoute>} />
-              <Route path="/rooms/:roomId/edit" element={<ProtectedRoute><EditRoom /></ProtectedRoute>} />
-              <Route path="/rooms/:roomId/members" element={<ProtectedRoute><RoomMembers /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-              <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
-              <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-              <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/u/:userId" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+                <Route path="/chat" element={<ProtectedRoute><ChatList /></ProtectedRoute>} />
+                <Route path="/chat/:roomId" element={<ProtectedRoute><ChatRoom /></ProtectedRoute>} />
+                <Route path="/rooms" element={<ProtectedRoute><Rooms /></ProtectedRoute>} />
+                <Route path="/rooms/:roomId/edit" element={<ProtectedRoute><EditRoom /></ProtectedRoute>} />
+                <Route path="/rooms/:roomId/members" element={<ProtectedRoute><RoomMembers /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+                <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/u/:userId" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
 
-              <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
-              <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
-              <Route path="/admin/themes" element={<ProtectedRoute requireAdmin><AdminThemes /></ProtectedRoute>} />
+                <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
+                <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
       </AppSettingsProvider>
     </ThemeProvider>
   </QueryClientProvider>

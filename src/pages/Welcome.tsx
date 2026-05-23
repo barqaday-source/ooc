@@ -1,5 +1,5 @@
 // ====================================================================
-// Welcome - صفحة ترحيب متحركة بهوية دردشاتي الزجاجية
+// Welcome - صفحة ترحيب متحركة بهوية دردشاتي الزجاجية الحديثة
 // ====================================================================
 
 import { useNavigate } from "react-router-dom";
@@ -12,7 +12,7 @@ export default function Welcome() {
   const appName = settings.app_name || "دردشاتي";
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background flex flex-col items-center justify-between px-6 py-10">
+    <div className="relative min-h-screen overflow-hidden bg-background flex flex-col items-center justify-between px-8 py-14">
       {/* خلفية متحركة - فقاعات زجاجية */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="blob blob-1" />
@@ -38,35 +38,31 @@ export default function Welcome() {
       </div>
 
       {/* الشعار العائم */}
-      <div className="relative z-10 mt-8 anim-fade-in">
+      <div className="relative z-10 mt-6 anim-fade-in">
         <div className="logo-float relative">
-          <div className="w-28 h-28 rounded-[2.5rem] glass-thick shadow-float flex items-center justify-center relative overflow-hidden border border-white/50">
+          <div className="w-24 h-24 rounded-[2rem] glass-thick shadow-float flex items-center justify-center relative overflow-hidden border border-white/50">
             {settings.logo_url ? (
               <img src={settings.logo_url} alt={appName} className="w-full h-full object-cover" />
             ) : (
-              <Sparkles className="w-12 h-12 icon-style" />
+              <Sparkles className="w-10 h-10 icon-style" />
             )}
           </div>
-          <div className="absolute -inset-3 rounded-[2.8rem] border border-white/40 logo-ring" />
-          <div className="absolute -inset-6 rounded-[3.2rem] border border-white/25 logo-ring-2" />
+          <div className="absolute -inset-2 rounded-[2.2rem] border border-white/40 logo-ring" />
+          <div className="absolute -inset-4 rounded-[2.5rem] border border-white/25 logo-ring-2" />
         </div>
       </div>
 
-      {/* النص الرئيسي */}
-      <div className="relative z-10 text-center max-w-md anim-slide-up">
-        <span className="inline-block px-4 py-1.5 rounded-full glass-thick text-[10px] font-bold tracking-[0.4em] mb-5 border border-white/50">
-          {settings.app_tagline || "CHAT • CONNECT • LEAD"}
-        </span>
-        <h1 className="text-5xl font-black tracking-[0.15em] mb-4 text-theme">
+      {/* النص الرئيسي والمزايا في مجموعة واحدة */}
+      <div className="relative z-10 text-center max-w-sm anim-slide-up w-full my-auto flex flex-col items-center justify-center">
+        <h1 className="text-4xl font-black tracking-wide mb-3 text-theme">
           {appName}
         </h1>
-        <p className="text-foreground/70 text-base leading-relaxed mb-8 px-4 font-medium">
-          منصة دردشة عربية حديثة بتصميم زجاجي أنيق<br />
+        <p className="text-foreground/70 text-sm leading-relaxed mb-10 font-medium">
           تواصل، شارك، وأبدع بحرية
         </p>
 
-        {/* بطاقات المزايا */}
-        <div className="grid grid-cols-3 gap-3 mb-8">
+        {/* المزايا العصرية (عائمة وبدون إطارات بيضاء) */}
+        <div className="grid grid-cols-3 gap-6 w-full px-2">
           {[
             { icon: MessageCircle, label: "محادثات فورية" },
             { icon: Users, label: "غرف جماعية" },
@@ -74,28 +70,29 @@ export default function Welcome() {
           ].map((f, i) => (
             <div
               key={i}
-              className="glass-thick rounded-[1.8rem] p-3 anim-scale-in feature-card border border-white/45"
+              className="flex flex-col items-center justify-center transition-transform duration-200 hover:-translate-y-1"
               style={{ animationDelay: `${0.2 + i * 0.1}s` }}
             >
-              <f.icon className="w-5 h-5 mx-auto mb-1.5 icon-style" />
-              <p className="text-[10px] font-bold text-foreground/80">{f.label}</p>
+              <f.icon className="w-5 h-5 mb-2 opacity-80 text-theme stroke-[1.5]" />
+              <p className="text-[11px] font-semibold text-foreground/60 whitespace-nowrap">{f.label}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* الأزرار */}
-      <div className="relative z-10 w-full max-w-md space-y-3 anim-slide-up" style={{ animationDelay: "0.3s" }}>
+      {/* مجموعة الأزرار السفلية */}
+      <div className="relative z-10 w-full max-w-xs space-y-4 anim-slide-up flex flex-col items-center" style={{ animationDelay: "0.3s" }}>
         <button
           onClick={() => navigate("/auth?mode=signup")}
-          className="btn-primary w-full h-16 rounded-[2.5rem] font-black text-base shadow-float flex items-center justify-center gap-3 active:scale-[0.98]"
+          className="btn-primary w-full h-14 rounded-2xl font-bold text-sm shadow-md flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
         >
           ابدأ الآن مجاناً
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-4 h-4" />
         </button>
+        
         <button
           onClick={() => navigate("/auth?mode=login")}
-          className="w-full h-16 rounded-[2.5rem] glass-thick font-bold text-base hover:bg-white/70 transition active:scale-[0.98] text-theme border border-white/55"
+          className="text-sm font-semibold text-theme hover:underline bg-transparent border-none py-2 px-4 transition active:scale-[0.98]"
         >
           لدي حساب بالفعل
         </button>
@@ -156,7 +153,7 @@ export default function Welcome() {
         .logo-float { animation: logo-bob 3s ease-in-out infinite; }
         @keyframes logo-bob {
           0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-12px); }
+          50% { transform: translateY(-8px); }
         }
         .logo-ring { animation: ring-spin 8s linear infinite; }
         .logo-ring-2 { animation: ring-spin 12s linear infinite reverse; }
@@ -164,9 +161,6 @@ export default function Welcome() {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-
-        .feature-card { transition: transform 0.2s; }
-        .feature-card:hover { transform: translateY(-4px); }
       `}</style>
     </div>
   );
