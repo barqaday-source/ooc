@@ -1,26 +1,23 @@
-// ====================================================================
-// Capacitor Configuration - إعداد التطبيق للموبايل (iOS / Android)
-// ====================================================================
-// بعد التصدير لـ GitHub:
-//   npm install
-//   npx cap add ios       # و/أو
-//   npx cap add android
-//   npm run build
-//   npx cap sync
-//   npx cap run ios       # أو android
-// ====================================================================
-
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.joud.chat",
   appName: "دردشة",
   webDir: "dist",
-  ios: {
-    contentInset: "always",
+  server: {
+    androidScheme: "https",
+    allowNavigation: ["*"], // للسماح بتسجيل الدخول الأصلي
   },
   android: {
-    backgroundColor: "#F2F3F1",
+    // هذا يلغي أي ستايلات افتراضية قد تشوه كروتك الزجاجية
+    backgroundColor: "#00000000", 
+  },
+  plugins: {
+    GoogleAuth: {
+      scopes: ["profile", "email"],
+      serverClientId: "ضع_الـ_ID_هنا.apps.googleusercontent.com",
+      forceCodeForRefreshToken: true,
+    },
   },
 };
 
