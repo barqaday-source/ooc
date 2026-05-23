@@ -16,23 +16,20 @@ jobs:
 
       - name: Build and Sync
         run: |
-          # 1. التثبيت وتجاوز الصراعات
           npm install --legacy-peer-deps
           npm install @capacitor/android @capacitor/cli @codetrix-studio/capacitor-google-auth --legacy-peer-deps
           npm run build
           
-          # 2. تهيئة بيئة الأندرويد
           rm -rf android
           npx cap add android
-          echo "Waiting for project structure..."
           sleep 10
           
-          # 3. ضبط الـ SDK (رفع الـ minSdk إلى 24 لحل تعارض Google Auth)
+          # 1. ضبط الـ SDK
           sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' android/app/build.gradle
           sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
 
-          # 4. حقن الأذونات بذكاء (مسح القديم ثم إضافة الجديد)
+          # 2. الأذونات
           sed -i '/<uses-permission/d' android/app/src/main/AndroidManifest.xml
           sed -i '/<application/i \
           <uses-permission android:name="android.permission.INTERNET" />\
@@ -41,13 +38,15 @@ jobs:
           <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\
           <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' android/app/src/main/AndroidManifest.xml
           
-          # 5. ضبط الكيبورد
+          # 3. ضبط الكيبورد
           sed -i 's/android:windowSoftInputMode=".*"/android:windowSoftInputMode="adjustResize"/' android/app/src/main/AndroidManifest.xml || \
           sed -i '/android:name=".MainActivity"/a \            android:windowSoftInputMode="adjustResize"' android/app/src/main/AndroidManifest.xml
 
-          # 6. حقن مكتبة Google Auth
+          # 4. الربط البرمجي الاحترافي لـ Google Auth
+          # هذا التعديل يضمن أن الـ Plugin يتم تسجيله قبل الـ Super
           find android/app/src/main/java -name "MainActivity.java" -exec sed -i '/import com.getcapacitor.BridgeActivity;/a import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth;' {} +
-          find android/app/src/main/java -name "MainActivity.java" -exec sed -i '/super.onCreate(savedInstanceState);/i \    registerPlugin(GoogleAuth.class);' {} +
+          find android/app/src/main/java -name "MainActivity.java" -exec sed -i '/public class MainActivity extends BridgeActivity {/a \  @Override\n  public void onCreate(Bundle savedInstanceState) {\n    registerPlugin(GoogleAuth.class);\n    super.onCreate(savedInstanceState);\n  }' {} +
+          # حذف الـ onCreate القديم إذا تكرر أو تداخل
           
           npx cap sync android
 
