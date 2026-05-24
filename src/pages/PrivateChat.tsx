@@ -73,11 +73,11 @@ export default function PrivateChat() {
       try {
         // تحقق أن الغرفة خاصة
         const { data: roomData, error: roomErr } = await supabase
-         .from("rooms")
-         .select("id, type")
-         .eq("id", roomId)
-         .eq("type", "private")
-         .maybeSingle();
+        .from("rooms")
+        .select("id, type")
+        .eq("id", roomId)
+        .eq("type", "private")
+        .maybeSingle();
 
         if (roomErr ||!roomData) {
           toast.error("المحادثة غير موجودة");
@@ -87,22 +87,22 @@ export default function PrivateChat() {
 
         // جيب الطرف الثاني
         const { data: members } = await supabase
-         .from("room_members")
-         .select("user_id")
-         .eq("room_id", roomId)
-         .neq("user_id", user.id)
-         .maybeSingle();
+        .from("room_members")
+        .select("user_id")
+        .eq("room_id", roomId)
+        .neq("user_id", user.id)
+        .maybeSingle();
 
         if (members?.user_id) {
           const { data: userData } = await supabase
-           .from("profiles")
-           .select("id, display_name, username, avatar_url, last_seen")
-           .eq("id", members.user_id)
-           .maybeSingle();
+          .from("profiles")
+          .select("id, display_name, username, avatar_url, last_seen")
+          .eq("id", members.user_id)
+          .maybeSingle();
 
           if (userData) {
             setOtherUser({
-             ...userData,
+            ...userData,
               is_online: isUserOnline(userData.id)
             });
           }
@@ -255,4 +255,319 @@ export default function PrivateChat() {
                   formatLastSeen(otherUser.last_seen)
                 )}
               </p>
-    </
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 min-w-0">
+            <h2 className="font-bold text-lg truncate flex items-center gap-2">
+              <Lock className="w-4 h-4 text-success" strokeWidth={2.5} />
+              محادثة خاصة
+            </h2>
+            <p className="text-xs text-muted-foreground">جاري التحميل...</p>
+          </div>
+        )}
+      </header>
+
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+        {loading? (
+          <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+        ) : messages.length === 0? (
+          <div className="text-center py-16 text-muted-foreground text-sm">
+            ابدأ المحادثة المشفرة 🔒
+          </div>
+        ) : (
+          messages.map((msg) => {
+            const mine = msg.user_id === user?.id;
+            const repliedMsg = getRepliedMessage(msg.reply_to_id);
+            const isHighlighted = highlightedMsgId === msg.id;
+
+            return (
+              <div
+                key={msg.id}
+                ref={el => messageRefs.current[msg.id] = el}
+                className={`flex gap-2 anim-fade-in ${mine? "flex-row-reverse" : ""} ${isHighlighted? "animate-pulse" : ""}`}
+              >
+                <button
+                  onClick={() =>!mine && navigate(`/u/${msg.user_id}`)}
+                  className="shrink-0 active:scale-95"
+                  aria-label="عرض الملف الشخصي"
+                  disabled={mine}
+                >
+                  <UserAvatar
+                    src={msg.profile?.avatar_url}
+                    name={msg.profile?.display_name || msg.profile?.username}
+                    size="sm"
+                  />
+                </button>
+                <div className={`max-w-[75%] ${mine? "items-end" : "items-start"} flex flex-col`}>
+                  {!mine && (
+                    <span className="text-xs text-muted-foreground mb-1 px-1 inline-flex items-center gap-1">
+                      {msg.profile?.display_name || msg.profile?.username}
+                    </span>
+                  )}
+
+                  {repliedMsg && (
+                    <button
+                      onClick={() => scrollToMessage(repliedMsg.id)}
+                      className={`mb-1 px-3 py-2 rounded-2xl text-xs max-w-full opacity-40 hover:opacity-60 transition text-right ${
+                        mine? "rounded-tr-sm" : "rounded-tl-sm"
+                      } bg-foreground/10 text-foreground active:scale-[0.98]`}
+                    >
+                      <p className="font-bold mb-0.5">
+                        {repliedMsg.profile?.display_name || repliedMsg.profile?.username}
+                      </p>
+                      <p className="truncate">
+                        {repliedMsg.message_type === "text"
+                        ? repliedMsg.content
+                          : repliedMsg.message_type === "image"? "📷 صورة" : "🎙️ رسالة صوتية"}
+                      </p>
+                    </button>
+                  )}
+
+                  <div
+                    onClick={() => setActionMsgId(msg.id)}
+                    className={`text-sm break-words text-right transition active:scale-[0.98] cursor-pointer ${
+                      msg.message_type === "image"
+                      ? "p-0 relative group"
+                        : msg.message_type === "voice"
+                        ? "p-0"
+                          : mine
+                            ? "px-3 py-2 bg-foreground text-background rounded-2xl rounded-tr-none"
+                              : "px-3 py-2 glass-card rounded-2xl rounded-tl-none shadow-none"
+                    } ${isHighlighted? "ring-2 ring-primary ring-offset-2" : ""}`}
+                  >
+                    {msg.message_type === "image" && msg.media_url? (
+                      <div className="relative">
+                        <img
+                          src={msg.media_url}
+                          alt=""
+                          loading="lazy"
+                          className="max-w-[240px] max-h-[300px] rounded-xl"
+                        />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setPreviewImg(msg.media_url!); }}
+                          className="absolute top-2 left-2 p-1.5 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition"
+                          aria-label="تكبير الصورة"
+                        >
+                          <ZoomIn className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
+                    ) : msg.message_type === "voice" && msg.media_url? (
+                      <div className="px-3 py-2 rounded-2xl bg-transparent">
+                        <VoicePlayer src={msg.media_url} duration={msg.media_duration} mine={mine} />
+                      </div>
+                    ) : (
+                      <span>
+                        {msg.content}
+                        {msg.edited_at && (
+                          <span className="opacity-60 text-xs mr-1">(معدّلة)</span>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-muted-foreground/60 mt-1 px-1">
+                    {new Date(msg.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}
+                    {mine && (
+                      isMessageRead(msg.created_at)
+                      ? <CheckCheck className="inline-block w-3.5 h-3.5 mr-1 text-sky-500" strokeWidth={2.2} />
+                        : <Check className="inline-block w-3.5 h-3.5 mr-1 text-muted-foreground" strokeWidth={2.2} />
+                    )}
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <TypingIndicator names={typingNames} />
+      </div>
+
+      {actionMsgId && activeMsg && (
+        <>
+          <div className="fixed inset-0 z-50" onClick={() => setActionMsgId(null)} />
+          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-auto min-w-[200px] bg-card rounded-2xl p-2 z-50 anim-slide-up shadow-2xl border border-border">
+            <div className="space-y-1">
+              {activeMsg.message_type === "image" && activeMsg.media_url && (
+                <button
+                  onClick={() => {
+                    setPreviewImg(activeMsg.media_url!);
+                    setActionMsgId(null);
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl hover:bg-background/70 font-medium flex items-center gap-3 text-sm transition"
+                >
+                  <ZoomIn className="w-4 h-4" /> عرض الصورة
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  const name = activeMsg.profile?.display_name || activeMsg.profile?.username || "—";
+                  const preview = activeMsg.message_type === "text"
+                  ? activeMsg.content.slice(0, 60)
+                    : activeMsg.message_type === "image"? "📷 صورة" : "🎙️ صوت";
+                  setReplyTo({ id: activeMsg.id, name, preview, messageType: activeMsg.message_type });
+                  setActionMsgId(null);
+                  setTimeout(() => inputRef.current?.focus(), 50);
+                }}
+                className="w-full px-4 py-2.5 rounded-xl hover:bg-background/70 font-medium flex items-center gap-3 text-sm transition"
+              >
+                <Reply className="w-4 h-4" /> رد
+              </button>
+
+              <button
+                onClick={async () => {
+                  const { error } = await hideForMe(activeMsg.id);
+                  if (error) toast.error("فشل", { description: error.message });
+                  else toast.success("أُخفيت من عندك");
+                  setActionMsgId(null);
+                }}
+                className="w-full px-4 py-2.5 rounded-xl hover:bg-background/70 font-medium flex items-center gap-3 text-sm transition"
+              >
+                <EyeOff className="w-4 h-4" /> حذف مني
+              </button>
+
+              {activeMsg.user_id === user?.id && (
+                <>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("حذف الرسالة من الجميع؟")) return;
+                      const { error } = await deleteForAll(activeMsg.id);
+                      if (error) toast.error("فشل", { description: error.message });
+                      else toast.success("حُذفت من الجميع");
+                      setActionMsgId(null);
+                    }}
+                    className="w-full px-4 py-2.5 rounded-xl hover:bg-destructive/10 text-destructive font-medium flex items-center gap-3 text-sm transition"
+                  >
+                    <Trash2 className="w-4 h-4" /> حذف للجميع
+                  </button>
+
+                  {activeMsg.message_type === "text" && (
+                    <button
+                      onClick={() => {
+                        setEditingId(activeMsg.id);
+                        setEditingText(activeMsg.content);
+                        setActionMsgId(null);
+                      }}
+                      className="w-full px-4 py-2.5 rounded-xl hover:bg-background/70 font-medium flex items-center gap-3 text-sm transition"
+                    >
+                      <Pencil className="w-4 h-4" /> تعديل
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {editingId && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-50" onClick={() => setEditingId(null)} />
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] glass-thick rounded-t-3xl p-4 z-50 anim-slide-up safe-bottom space-y-3 border-t border-white/40">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-bold">تعديل الرسالة</p>
+              <button onClick={() => setEditingId(null)} className="p-1"><X className="w-4 h-4" /></button>
+            </div>
+            <textarea
+              value={editingText}
+              onChange={(e) => setEditingText(e.target.value)}
+              maxLength={2000}
+              rows={3}
+              className="w-full p-3 rounded-2xl bg-background/70 border border-white/50 outline-none text-sm resize-none"
+              autoFocus
+            />
+            <button
+              onClick={async () => {
+                if (!editingText.trim()) return;
+                const { error } = await editMessage(editingId, editingText.trim());
+                if (error) toast.error("فشل التعديل", { description: error.message });
+                else toast.success("تم التعديل");
+                setEditingId(null);
+              }}
+              className="w-full h-12 rounded-2xl text-white font-bold flex items-center justify-center gap-2"
+              style={{ backgroundColor: "var(--app-btn)" }}
+            >
+              <Check className="w-4 h-4" /> حفظ التعديل
+            </button>
+          </div>
+        </>
+      )}
+
+      {previewImg && (
+        <div
+          className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-4"
+          onClick={() => setPreviewImg(null)}
+        >
+          <button
+            onClick={() => setPreviewImg(null)}
+            className="absolute top-4 left-4 p-2 bg-white/10 rounded-xl text-white"
+            aria-label="إغلاق"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <img src={previewImg} alt="" className="max-w-full max-h-full rounded-xl" />
+        </div>
+      )}
+
+      <div className="sticky bottom-0 safe-bottom bg-transparent">
+        {replyTo && (
+          <div className="mx-3 mb-1 px-3 py-2 rounded-2xl glass-thick border border-white/50 flex items-center gap-2 anim-slide-up">
+            <Reply className="w-3.5 h-3.5 text-foreground/60 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-foreground/80">{replyTo.name}</p>
+              <p className="text-xs text-foreground/60 truncate">{replyTo.preview}</p>
+            </div>
+            <button onClick={() => setReplyTo(null)} className="p-1" aria-label="إلغاء الرد">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+        <form
+          onSubmit={handleSend}
+          className="px-3 pt-2 pb-3 flex gap-2 items-center"
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={handleImagePick}
+          />
+
+          {input.trim()? (
+            <button
+              type="submit"
+              disabled={sending}
+              className="w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0 active:scale-95 transition shadow-md"
+              style={{ backgroundColor: "var(--app-btn)" }}
+              aria-label="إرسال"
+            >
+              {sending? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            </button>
+          ) : (
+            <VoiceRecorder onSend={handleVoiceSend} disabled={sending} />
+          )}
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending}
+            className="w-12 h-12 rounded-full glass-thick border border-white/60 flex items-center justify-center disabled:opacity-50 active:scale-95 transition shrink-0"
+            aria-label="إرفاق صورة"
+          >
+            <ImageIcon className="w-5 h-5 text-foreground/80" strokeWidth={1.6} />
+          </button>
+
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={handleInputChange}
+            placeholder="رسالة مشفرة..."
+            disabled={sending ||!profile}
+            dir="rtl"
+            className="flex-1 h-12 px-5 rounded-full bg-primary/50 border-white/60 placeholder:text-foreground/40 focus:border-white outline-none text-sm transition min-w-0 text-right"
+          />
+        </form>
+      </div>
+    </div>
+  );
+    }
