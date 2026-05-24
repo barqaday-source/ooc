@@ -1,42 +1,53 @@
-name: Build Android APK
-
-on:
-  push:
-    branches: [main, master]
-  workflow_dispatch:
+name: Build Native Android APK
+on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-      - uses: actions/setup-java@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
-      - uses: android-actions/setup-android@v3
-      - name: Accept Android Licenses
-        run: yes | sdkmanager --licenses || true
-      - run: npm install --legacy-peer-deps
-      - run: npm run build
-      - run: npx cap sync android
-      - run: npx cap add android || true
-      - run: |
-          if [ -f google-services.json ]; then
-            cp google-services.json android/app/
-          fi
-      - name: Configure Gradle
-        run: |
-          echo "android.enableJetifier=true" >> android/gradle.properties
-          echo "android.useAndroidX=true" >> android/gradle.properties
-          cd android && chmod +x gradlew
-      - name: Build APK
-        run: cd android && ./gradlew assembleDebug --stacktrace
-      - uses: actions/upload-artifact@v4
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
         with:
-          name: Dardshati-APK
+          cmdline-tools-version: '11076708'
+          packages: 'platforms;android-34 build-tools;34.0.0 platform-tools'
+
+      - name: Install Dependencies
+        run: |
+          rm -rf node_modules package-lock.json
+          npm cache clean --force
+          npm install --legacy-peer-deps
+          
+      - name: Build Web App
+        run: npm run build
+          
+      - name: Sync Capacitor
+        run: |
+          npx cap add android || true
+          npx cap sync android
+          
+      - name: Compile Native Binary
+        run: |
+          cd android
+          yes | sdkmanager --licenses || true
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          
+      - name: Upload Final Native APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dardshati-Native-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
