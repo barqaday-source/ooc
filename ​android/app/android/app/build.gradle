@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.dardshati.app" // تأكد من مطابقة هذا لملف capacitor.config.ts
+    namespace = "com.drdshati.app" // تأكد من مطابقة هذا لملف capacitor.config.ts
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.dardshati.app"
