@@ -19,26 +19,35 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       
-      - name: Install & Build Native Shell
+      - name: Install Dependencies & Build Web
         run: |
-          npm cache clean --force  # تنظيف الكاش لضمان تثبيت نظيف
-          npm install              # تثبيت كل ما في package.json
-          npm install framer-motion # تثبيت المكتبة المفقودة يدوياً
-          npm run build            # بناء المشروع
+          # تنظيف البيئة لضمان عدم وجود ملفات معطوبة
+          rm -rf node_modules package-lock.json
+          npm cache clean --force
+          
+          # تثبيت المكتبات الأساسية والمكتبة التي تسبب الخطأ
+          npm install
+          npm install framer-motion@latest @capacitor/preferences --save
+          
+          # بناء نسخة الويب
+          npm run build
+          
+      - name: Prepare Native Android
+        run: |
+          # إعداد Capacitor للأندرويد
           npx cap add android || true
           npx cap sync android
-
-      - name: Force Native Configuration
+          
+      - name: Configure Native Settings
         run: |
-          # هنا نقوم بفرض إعدادات Native داخل ملفات الأندرويد التي تم إنشاؤها للتو
-          # لنمنع أي سلوك "متصفح"
+          # فرض إعدادات تمنع المتصفح وتجعل التطبيق Native
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           
       - name: Compile Native Binary
         run: |
           cd android
-          # البناء بصيغة Native Binary وليس Webview
+          # البناء باستخدام Java 21 المجهزة مسبقاً
           ./gradlew assembleDebug -Dorg.gradle.java.home=$JAVA_HOME
           
       - name: Upload Final Native APK
