@@ -1,4 +1,4 @@
-name: Build Release APK with Fixed Keystore
+name: Build Release APK - Fixed Signing
 on: [push]
 
 jobs:
@@ -21,113 +21,50 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: '11076708'
-          packages: 'platforms;android-34 build-tools;34.0.0 platform-tools'
 
       - name: Install Dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm cache clean --force
-          npm install --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: Build Web App
         run: npm run build
 
-      - name: Remove old android folder
-        run: rm -rf android
+      - name: Copy web assets to android
+        run: npx cap copy android
 
-      - name: Force Package Name to com.drdshati.app
-        run: |
-          sed -i 's/"appId": ".*"/"appId": "com.drdshati.app"/' capacitor.config.ts
-          sed -i 's/"appId": ".*"/"appId": "com.drdshati.app"/' capacitor.config.json || true
+      - name: Add google-services.json
+        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
 
-      - name: Add Android platform
-        run: |
-          npx cap add android
-          npx cap sync android
-
-      - name: Copy google-services.json
-        run: |
-          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
-
-      - name: Decode Your Fixed Keystore
+      - name: Add Release Keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/dardshati-release.keystore
 
-      - name: Create signing.properties
+      - name: Create signing.properties in correct path
         run: |
-          cat > android/signing.properties <<EOF
+          cat > android/app/signing.properties <<EOF
           storeFile=dardshati-release.keystore
           storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
 
-      - name: Configure Gradle for Release Only
-        run: |
-          cat >> android/app/build.gradle <<'EOF'
-
-          def keystorePropertiesFile = rootProject.file("signing.properties")
-          def keystoreProperties = new Properties()
-          keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-
-          android {
-              signingConfigs {
-                  release {
-                      storeFile file(keystoreProperties['storeFile'])
-                      storePassword keystoreProperties['storePassword']
-                      keyAlias keystoreProperties['keyAlias']
-                      keyPassword keystoreProperties['keyPassword']
-                  }
-              }
-              buildTypes {
-                  release {
-                      signingConfig signingConfigs.release
-                      minifyEnabled false
-                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-                  }
-                  debug {
-                      signingConfig signingConfigs.release
-                  }
-              }
-          }
-          EOF
-
       - name: Inject Mic permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i '/<uses-permission android:name="android.permission.INTERNET"/a\ <uses-permission android:name="android.permission.RECORD_AUDIO" />\n <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST
-          sed -i 's/android:windowSoftInputMode="adjustNothing"/android:windowSoftInputMode="adjustResize"/' $MANIFEST
 
       - name: Register VoiceRecorder
         run: |
           MAINACTIVITY=$(find android/app/src/main/java -name MainActivity.java)
-          sed -i '/import com.getcapacitor.BridgeActivity;/a import capacitor.voice.recorder.VoiceRecorder;' $MAINACTIVITY
-          sed -i '/registerPlugin(GoogleAuth.class);/a\ registerPlugin(VoiceRecorder.class);' $MAINACTIVITY
+          grep -q "VoiceRecorder" $MAINACTIVITY || sed -i '/import com.getcapacitor.BridgeActivity;/a import capacitor.voice.recorder.VoiceRecorder;' $MAINACTIVITY
+          grep -q "registerPlugin(VoiceRecorder.class)" $MAINACTIVITY || sed -i '/super.onCreate(savedInstanceState);/a\ registerPlugin(VoiceRecorder.class);' $MAINACTIVITY
 
-      - name: Inject Google Client IDs
-        run: |
-          CONFIG="src/lib/app.config.json"
-          sed -i 's|"GOOGLE_CLIENT_ID_ANDROID": ".*"|"GOOGLE_CLIENT_ID_ANDROID": "${{ secrets.GOOGLE_CLIENT_ID_ANDROID }}"|' $CONFIG
-          sed -i 's|"GOOGLE_CLIENT_ID_WEB": ".*"|"GOOGLE_CLIENT_ID_WEB": "${{ secrets.GOOGLE_CLIENT_ID_WEB }}"|' $CONFIG
-
-      - name: Build Release APK with Fixed Signature
+      - name: Build Release APK
         run: |
           cd android
-          yes | sdkmanager --licenses || true
           chmod +x gradlew
-         ./gradlew assembleRelease --stacktrace
+         ./gradlew assembleRelease --info
 
-      - name: Print Fixed SHA-1 once
-        run: |
-          echo "=== SHA-1 الثابت مالك ==="
-          keytool -list -v -keystore android/app/dardshati-release.keystore -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" -alias "${{ secrets.ANDROID_KEY_ALIAS }}" | grep "SHA1"
-          echo "Package Name المستخدم:"
-          grep "applicationId" android/app/build.gradle
-          echo "هذا الـ SHA-1 ثابت للأبد. تأكد موجود بجوجل ويا com.drdshati.app"
-
-      - name: Upload Release APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Dardshati-Release-Fixed
+          name: Dardshati-Release
           path: android/app/build/outputs/apk/release/app-release.apk
