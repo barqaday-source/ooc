@@ -21,11 +21,13 @@ jobs:
       
       - name: Install & Build Native Shell
         run: |
-          npm install
-          npm run build
+          npm cache clean --force  # تنظيف الكاش لضمان تثبيت نظيف
+          npm install              # تثبيت كل ما في package.json
+          npm install framer-motion # تثبيت المكتبة المفقودة يدوياً
+          npm run build            # بناء المشروع
           npx cap add android || true
           npx cap sync android
-          
+
       - name: Force Native Configuration
         run: |
           # هنا نقوم بفرض إعدادات Native داخل ملفات الأندرويد التي تم إنشاؤها للتو
