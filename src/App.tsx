@@ -7,11 +7,6 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { AppSettingsProvider } from "@/hooks/useAppSettings";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { useEffect } from "react";
-import { StatusBar, Style } from '@capacitor/status-bar';
-import { NavigationBar } from '@capgo/navigation-bar';
-import { Network } from '@capacitor/network';
-import { toast } from "sonner";
 
 import Index from "./pages/Index.tsx";
 import Welcome from "./pages/Welcome.tsx";
@@ -46,34 +41,6 @@ const queryClient = new QueryClient({
 });
 
 const AppContent = () => {
-  useEffect(() => {
-    // 1. تثبيت الشريط العلوي والسفلي
-    const setupUI = async () => {
-      await StatusBar.setStyle({ style: Style.Dark });
-      await StatusBar.setBackgroundColor({ color: '#B6D6FF' });
-      await StatusBar.setOverlaysWebView({ overlay: false });
-      await NavigationBar.setColor({ color: '#B6D6FF', darkButtons: true });
-    };
-    setupUI();
-
-    // 2. إشعار النت الحقيقي
-    const handler = Network.addListener('networkStatusChange', status => {
-      if (!status.connected) {
-        toast.error("⚠️ لا يوجد اتصال بالإنترنت", {
-          duration: Infinity,
-          id: 'no-internet'
-        });
-      } else {
-        toast.dismiss('no-internet');
-        toast.success("✅ تم استعادة الاتصال");
-      }
-    });
-
-    return () => {
-      handler.then(h => h.remove());
-    };
-  }, []);
-
   return (
     <BrowserRouter>
       <AuthProvider>
