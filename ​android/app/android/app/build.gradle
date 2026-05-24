@@ -1,20 +1,44 @@
 apply plugin: 'com.android.application'
 
+// قراءة ملف التوقيع الثابت
+def keystorePropertiesFile = rootProject.file("signing.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
-    namespace = "com.drdshati.app" // تأكد من مطابقة هذا لملف capacitor.config.ts
+    namespace "com.drdshati.app" // موحد مع Firebase
     compileSdk rootProject.ext.compileSdkVersion
+    
     defaultConfig {
-        applicationId "com.dardshati.app"
+        applicationId "com.drdshati.app" // موحد مع namespace و Firebase
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            signingConfig signingConfigs.release // حتى الـ debug يستخدم نفس التوقيع الثابت
         }
     }
 }
@@ -31,7 +55,7 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     
-    // الإضافات الضرورية لجوجل والمايكروفون (Native)
+    // الإضافات الضرورية لجوجل والمايكروفون Native
     implementation 'com.google.android.gms:play-services-auth:21.0.0'
     implementation project(':capacitor-android')
     implementation project(':capacitor-cordova-android-plugins')
@@ -43,5 +67,5 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-// هذا الجزء يضمن تفعيل جوجل إذا وجد ملف google-services.json
+// تفعيل جوجل - لازم google-services.json موجود
 apply plugin: 'com.google.gms.google-services'
