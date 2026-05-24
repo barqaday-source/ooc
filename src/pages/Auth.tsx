@@ -93,7 +93,7 @@ export default function AuthPage() {
 
     const { error } =
       mode === "login"
-       ? await signIn(email, password)
+      ? await signIn(email, password)
         : await signUp(email, password, username.trim(), true);
 
     setSubmitting(false);
@@ -118,7 +118,10 @@ export default function AuthPage() {
           client_id: appConfig.GOOGLE_CLIENT_ID_ANDROID, // إجبار النظام على هذا المعرف فقط
           access_type: "offline",
           prompt: "select_account",
+          // هذا الخيار يجبر النظام على عدم استخدام كروت داخلية ويفتح متصفح النظام
+          signing_config_enabled: appConfig.SIGNING_CONFIG_ENABLED,
         },
+        skipBrowserRedirect: false, // يجبر Supabase على فتح متصفح النظام Native في Capacitor
       },
     });
     if (error) {
@@ -290,24 +293,24 @@ export default function AuthPage() {
       </div>
 
       <style>{`
-   .auth-blob {
+  .auth-blob {
           position: absolute;
           border-radius: 50%;
           filter: blur(70px);
           animation: auth-float 18s ease-in-out infinite;
         }
-   .auth-blob-1 {
+  .auth-blob-1 {
           width: 350px; height: 350px;
           background: hsl(var(--primary) / 0.7);
           top: -120px; right: -100px;
         }
-   .auth-blob-2 {
+  .auth-blob-2 {
           width: 300px; height: 300px;
           background: hsl(var(--accent) / 0.5);
           bottom: -100px; left: -80px;
           animation-delay: 6s;
         }
-   .auth-blob-3 {
+  .auth-blob-3 {
           width: 260px; height: 260px;
           background: hsl(var(--primary-deep) / 0.5);
           top: 40%; right: 30%;
