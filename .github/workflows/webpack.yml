@@ -1,39 +1,35 @@
-name: Build Pro Android APK
-on:
-  push:
-    branches: [ "main" ]
+name: Build Android APK
+on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version-file: 'package.json' }
-
-      - name: Install and Build
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install Dependencies
+        run: npm install
+        
+      - name: Build Web App
+        run: npm run build
+        
+      - name: Add Android & Sync
         run: |
-          # تثبيت كل الحزم بما فيها framer-motion التي تسببت بالخطأ
-          npm install --legacy-peer-deps
-          npm install framer-motion @capacitor/core @capacitor/cli @codetrix-studio/capacitor-google-auth --legacy-peer-deps
-          npm run build
           npx cap add android
           npx cap sync android
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Build and Sign APK
-        run: |
-          # 1. إنشاء مفتاح التوقيع الثابت
-          keytool -genkey -v -keystore my-release-key.jks -alias my-alias -keyalg RSA -keysize 2048 -validity 10000 -storepass password123 -keypass password123 -dname "CN=App, OU=Chat, O=App, L=Basra, C=IQ"
           
-          # 2. البناء والتوقيع
+      - name: Build APK
+        run: |
           cd android
-          ./gradlew assembleDebug \
-            -Pandroid.injected.signing.store.file=../my-release-key.jks \
-            -Pandroid.injected.signing.store.password=password123 \
-            -Pandroid.injected.signing.key.alias=my-alias \
-            -Pandroid.injected.signing.key.password=password123
+          # نستخدم المفاتيح الصارمة هنا
+          ./gradlew assembleRelease
+          
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: Dardshati-APK
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
