@@ -11,35 +11,29 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version-file: 'package.json' }
 
-      - name: Build Web
+      - name: Install and Build
         run: |
+          # تثبيت كل الحزم بما فيها framer-motion التي تسببت بالخطأ
           npm install --legacy-peer-deps
+          npm install framer-motion @capacitor/core @capacitor/cli @codetrix-studio/capacitor-google-auth --legacy-peer-deps
           npm run build
           npx cap add android
+          npx cap sync android
 
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Create Keystore and Build
+      - name: Build and Sign APK
         run: |
-          # 1. إنشاء مفتاح توقيع ثابت إذا لم يكن موجوداً
-          keytool -genkey -v -keystore my-release-key.jks -alias my-alias -keyalg RSA -keysize 2048 -validity 10000 -storepass password123 -keypass password123 -dname "CN=Joud, OU=Chat, O=App, L=Basra, C=IQ"
+          # 1. إنشاء مفتاح التوقيع الثابت
+          keytool -genkey -v -keystore my-release-key.jks -alias my-alias -keyalg RSA -keysize 2048 -validity 10000 -storepass password123 -keypass password123 -dname "CN=App, OU=Chat, O=App, L=Basra, C=IQ"
           
-          # 2. استخراج البصمة SHA-1 (سأعرضها لك في سجلات السيرفر)
-          keytool -list -v -keystore my-release-key.jks -storepass password123 | grep SHA1
-          
-          # 3. توقيع التطبيق باستخدام هذا المفتاح
+          # 2. البناء والتوقيع
           cd android
           ./gradlew assembleDebug \
             -Pandroid.injected.signing.store.file=../my-release-key.jks \
             -Pandroid.injected.signing.store.password=password123 \
             -Pandroid.injected.signing.key.alias=my-alias \
             -Pandroid.injected.signing.key.password=password123
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release
-          path: android/app/build/outputs/apk/debug/app-debug.apk
