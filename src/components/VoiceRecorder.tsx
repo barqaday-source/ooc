@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Send, Trash2, Loader2 } from "lucide-react";
+import { VoiceRecorder } from 'capacitor-voice-recorder';
 
 interface Props {
   onSend: (blob: Blob, durationSec: number) => Promise<void>;
@@ -18,7 +19,7 @@ function fmt(sec: number) {
 
 const BAR_COUNT = 22;
 
-export default function VoiceRecorder({ onSend, disabled }: Props) {
+export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [blob, setBlob] = useState<Blob | null>(null);
@@ -74,6 +75,14 @@ export default function VoiceRecorder({ onSend, disabled }: Props) {
 
   const start = async () => {
     try {
+      // 1. طلب الإذن من Capacitor - مهم للأندرويد APK
+      const status = await VoiceRecorder.requestAudioRecordingPermission();
+      if (!status.value) {
+        alert("يرجى منح إذن الميكروفون من إعدادات الهاتف");
+        return;
+      }
+
+      // 2. بعد الإذن، نشغل getUserMedia عادي
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
@@ -120,7 +129,8 @@ export default function VoiceRecorder({ onSend, disabled }: Props) {
       setBlob(null);
       timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
     } catch (e) {
-      alert("يجب السماح بالوصول إلى الميكروفون");
+      console.error(e);
+      alert("فشل الوصول للميكروفون. تأكد من الإذن في إعدادات التطبيق");
     }
   };
 
@@ -226,4 +236,4 @@ export default function VoiceRecorder({ onSend, disabled }: Props) {
       </button>
     </div>
   );
-}
+                }
