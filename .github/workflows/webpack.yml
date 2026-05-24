@@ -8,12 +8,24 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       
+      # 1. إجبار السيرفر على تغيير نسخة Node
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'  # النسخة المطلوبة الآن
+          node-version: '22'
       
-      - name: Install All Dependencies
+      # 2. إجبار السيرفر على تغيير نسخة Java
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      
+      # 3. إجبار السيرفر على تحديث أدوات Android (SDK) لتتناسب مع نسخة Java
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      
+      - name: Install Dependencies
         run: |
           npm install
           npm install framer-motion
@@ -26,7 +38,8 @@ jobs:
           npx cap add android || true
           npx cap sync android
           cd android
-          ./gradlew assembleDebug
+          # إجبار Gradle على استخدام Java 21 التي جهزناها
+          ./gradlew assembleDebug -Dorg.gradle.java.home=$JAVA_HOME
           
       - name: Upload APK File
         uses: actions/upload-artifact@v4
