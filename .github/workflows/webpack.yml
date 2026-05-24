@@ -7,12 +7,12 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -30,22 +30,54 @@ jobs:
           rm -rf node_modules package-lock.json
           npm cache clean --force
           npm install --legacy-peer-deps
-          
+
       - name: Build Web App
         run: npm run build
-          
-      - name: Sync Capacitor
+
+      - name: Remove old android folder
+        run: rm -rf android
+
+      - name: Add Android fresh with Mic permissions
         run: |
-          npx cap add android || true
+          npx cap add android
           npx cap sync android
-          
+
+      - name: Inject Mic permissions to Manifest
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<uses-permission android:name="android.permission.INTERNET"/a\ <uses-permission android:name="android.permission.RECORD_AUDIO" />\n <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST
+          sed -i 's/android:windowSoftInputMode="adjustNothing"/android:windowSoftInputMode="adjustResize"/' $MANIFEST
+          sed -i '/android:hardwareAccelerated="true"/a\ android:requestLegacyExternalStorage="true"' $MANIFEST
+
+      - name: Register VoiceRecorder plugin in MainActivity
+        run: |
+          MAINACTIVITY=$(find android/app/src/main/java -name MainActivity.java)
+          sed -i '/import com.getcapacitor.BridgeActivity;/a import capacitor.voice.recorder.VoiceRecorder;' $MAINACTIVITY
+          sed -i '/registerPlugin(GoogleAuth.class);/a\ registerPlugin(VoiceRecorder.class);' $MAINACTIVITY
+
+      - name: Print Google Sign-In Debug Info
+        run: |
+          echo "=============================="
+          echo " GOOGLE SIGN-IN DEBUG INFO "
+          echo "=============================="
+          echo "1. Package Name:"
+          cat android/app/src/main/AndroidManifest.xml | grep "package=" || cat android/app/build.gradle | grep "applicationId"
+          echo ""
+          echo "2. SHA-1 of debug.keystore:"
+          keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep "SHA1"
+          echo ""
+          echo "3. سوي نسخ للـ SHA-1 + Package Name وضيفهم هنا:"
+          echo " https://console.cloud.google.com/apis/credentials"
+          echo " لازم تسوي OAuth Client ID > Android وتضيفهن"
+          echo "=============================="
+
       - name: Compile Native Binary
         run: |
           cd android
           yes | sdkmanager --licenses || true
           chmod +x gradlew
-          ./gradlew assembleDebug
-          
+         ./gradlew assembleDebug --stacktrace
+
       - name: Upload Final Native APK
         uses: actions/upload-artifact@v4
         with:
