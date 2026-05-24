@@ -31,20 +31,32 @@ jobs:
           sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
 
-          # 2. حقن الأذونات + ضبط الكيبورد adjustPan
+          # 2. حقن الأذونات
           sed -i '/<uses-permission/d' android/app/src/main/AndroidManifest.xml
           sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n<uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.CAMERA" />' android/app/src/main/AndroidManifest.xml
           
-          # 3. ضبط الكيبورد لمنع صعود الواجهة
+          # 3. ضبط الكيبورد adjustPan
           sed -i 's/android:windowSoftInputMode="[^"]*"/android:windowSoftInputMode="adjustPan"/g' android/app/src/main/AndroidManifest.xml
           
-          # 4. في حالة ما كان موجود أصلاً، نضيفه
-          grep -q 'android:windowSoftInputMode' android/app/src/main/AndroidManifest.xml || sed -i 's/<activity/<activity android:windowSoftInputMode="adjustPan"/' android/app/src/main/AndroidManifest.xml
+          # 4. حقن مكتبة Google Auth و الـ Caching في MainActivity.java
+          # نمسح أي onCreate قديم لمنع التكرار قبل الحقن
+          sed -i '/public void onCreate/,/}/d' android/app/src/main/java/com/joud/chat/MainActivity.java
           
-          # 5. تسجيل Google Auth
-          find android/app/src/main/java -name "MainActivity.java" -exec sed -i '/import com.getcapacitor.BridgeActivity;/a import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth;' {} +
-          find android/app/src/main/java -name "MainActivity.java" -exec sed -i '/public class MainActivity extends BridgeActivity {/a @Override\npublic void onCreate(Bundle savedInstanceState) {\nregisterPlugin(GoogleAuth.class);\nsuper.onCreate(savedInstanceState);\n}' {} +
+          # نضيف الإضافات والمكتبات المطلوبة
+          sed -i '/import com.getcapacitor.BridgeActivity;/a import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth;\nimport android.os.Bundle;\nimport android.webkit.WebSettings;\nimport android.webkit.WebView;' android/app/src/main/java/com/joud/chat/MainActivity.java
           
+          # نضع الـ onCreate الصحيح داخل الـ Class
+          sed -i '/public class MainActivity extends BridgeActivity {/a \
+            @Override\
+            public void onCreate(Bundle savedInstanceState) {\
+                registerPlugin(GoogleAuth.class);\
+                super.onCreate(savedInstanceState);\
+                WebView webView = getBridge().getWebView();\
+                WebSettings settings = webView.getSettings();\
+                settings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);\
+                settings.setDomStorageEnabled(true);\
+            }' android/app/src/main/java/com/joud/chat/MainActivity.java
+
           npx cap sync android
           
           cd android
