@@ -1,5 +1,4 @@
 name: Build Pro Android APK
-
 on:
   push:
     branches: [ "main" ]
@@ -12,57 +11,31 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version-file: 'package.json' }
 
-      - name: Build Web and Prepare Android
+      - name: Build and Sync
         run: |
           npm install --legacy-peer-deps
           npm install @capacitor/android @capacitor/cli @codetrix-studio/capacitor-google-auth framer-motion lucide-react --legacy-peer-deps
           npm run build
           npx cap add android
+          
+          # استبدال الملفات بملفاتك الجاهزة الموجودة في مجلد android_templates
+          cp android_templates/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          cp android_templates/MainActivity.java android/app/src/main/java/com/joud/chat/MainActivity.java
+          
+          # تحديث الـ SDK فقط (هذا لا يكسر الكود)
+          sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' android/app/build.gradle
+          sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
+
+          npx cap sync android
 
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Patch and Build
+      - name: Build APK
         run: |
-          # 1. تحديث الـ SDK
-          sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' android/app/build.gradle
-          sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
-          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
-
-          # 2. حقن الأذونات
-          sed -i '/<uses-permission/d' android/app/src/main/AndroidManifest.xml
-          sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n<uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.CAMERA" />' android/app/src/main/AndroidManifest.xml
-          
-          # 3. ضبط الكيبورد adjustPan
-          sed -i 's/android:windowSoftInputMode="[^"]*"/android:windowSoftInputMode="adjustPan"/g' android/app/src/main/AndroidManifest.xml
-          
-          # 4. حذف الملف القديم وإنشاء ملف جديد نظيف يحتوي على كل التعديلات
-          rm -f android/app/src/main/java/com/joud/chat/MainActivity.java
-          cat <<EOF > android/app/src/main/java/com/joud/chat/MainActivity.java
-          package com.joud.chat;
-          import com.getcapacitor.BridgeActivity;
-          import android.os.Bundle;
-          import android.webkit.WebSettings;
-          import android.webkit.WebView;
-          import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth;
-
-          public class MainActivity extends BridgeActivity {
-              @Override
-              public void onCreate(Bundle savedInstanceState) {
-                  registerPlugin(GoogleAuth.class);
-                  super.onCreate(savedInstanceState);
-                  WebView webView = getBridge().getWebView();
-                  WebSettings settings = webView.getSettings();
-                  settings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
-                  settings.setDomStorageEnabled(true);
-              }
-          }
-EOF
-
-          npx cap sync android
-          
           cd android
           chmod +x gradlew
           ./gradlew clean assembleDebug
