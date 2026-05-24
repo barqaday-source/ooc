@@ -11,23 +11,18 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version-file: 'package.json' }
 
-      - name: Build and Sync
+      - name: Setup Android Project
         run: |
           npm install --legacy-peer-deps
           npm install @capacitor/android @capacitor/cli @codetrix-studio/capacitor-google-auth framer-motion lucide-react --legacy-peer-deps
           npm run build
+          # إنشاء مجلد الأندرويد من الصفر
           npx cap add android
           
-          # استبدال الملفات بملفاتك الجاهزة الموجودة في مجلد android_templates
+          # الآن السيرفر لديه المجلد، سنقوم بنسخ ملفاتك إليه (تأكد من وجود المجلد android_templates في مستودعك)
+          mkdir -p android/app/src/main/java/com/joud/chat/
           cp android_templates/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
           cp android_templates/MainActivity.java android/app/src/main/java/com/joud/chat/MainActivity.java
-          
-          # تحديث الـ SDK فقط (هذا لا يكسر الكود)
-          sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' android/app/build.gradle
-          sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
-          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
-
-          npx cap sync android
 
       - uses: actions/setup-java@v4
         with:
@@ -36,6 +31,11 @@ jobs:
 
       - name: Build APK
         run: |
+          # تحديث الـ SDK داخل المجلد الذي تم إنشاؤه للتو
+          sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' android/app/build.gradle
+          sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
+          
           cd android
           chmod +x gradlew
           ./gradlew clean assembleDebug
