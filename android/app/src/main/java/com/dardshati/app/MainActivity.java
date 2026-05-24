@@ -3,6 +3,7 @@ package com.dardshati.app;
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
 import com.codetrixstudio.capacitorGoogleAuth.GoogleAuth;
+import capacitor.voice.recorder.VoiceRecorder;
 
 public class MainActivity extends BridgeActivity {
     @Override
@@ -11,5 +12,8 @@ public class MainActivity extends BridgeActivity {
 
         // تفعيل جوجل Auth
         registerPlugin(GoogleAuth.class);
+        
+        // مهم جداً: هذا السطر يحل مشكلة كارت الإذن الرمادي واللوب
+        registerPlugin(VoiceRecorder.class);
     }
 }
