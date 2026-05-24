@@ -9,6 +9,7 @@ import { useAppSettings } from "@/hooks/useAppSettings";
 import { supabase } from "@/lib/supabase";
 import { Loader2, Lock, User, ArrowRight, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import appConfig from "@/lib/app.config.json"; // ملف المفاتيح الصارمة
 
 type Mode = "login" | "signup" | "forgot";
 
@@ -92,7 +93,7 @@ export default function AuthPage() {
 
     const { error } =
       mode === "login"
-     ? await signIn(email, password)
+       ? await signIn(email, password)
         : await signUp(email, password, username.trim(), true);
 
     setSubmitting(false);
@@ -114,6 +115,7 @@ export default function AuthPage() {
       options: {
         redirectTo: getRedirectURL(),
         queryParams: {
+          client_id: appConfig.GOOGLE_CLIENT_ID_ANDROID, // إجبار النظام على هذا المعرف فقط
           access_type: "offline",
           prompt: "select_account",
         },
@@ -288,24 +290,24 @@ export default function AuthPage() {
       </div>
 
       <style>{`
-    .auth-blob {
+   .auth-blob {
           position: absolute;
           border-radius: 50%;
           filter: blur(70px);
           animation: auth-float 18s ease-in-out infinite;
         }
-    .auth-blob-1 {
+   .auth-blob-1 {
           width: 350px; height: 350px;
           background: hsl(var(--primary) / 0.7);
           top: -120px; right: -100px;
         }
-    .auth-blob-2 {
+   .auth-blob-2 {
           width: 300px; height: 300px;
           background: hsl(var(--accent) / 0.5);
           bottom: -100px; left: -80px;
           animation-delay: 6s;
         }
-    .auth-blob-3 {
+   .auth-blob-3 {
           width: 260px; height: 260px;
           background: hsl(var(--primary-deep) / 0.5);
           top: 40%; right: 30%;
