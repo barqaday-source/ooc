@@ -5,30 +5,30 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'  # النسخة المطلوبة الآن
       
-      # التعديل هنا: تثبيت المكتبات بشكل صريح قبل البناء
-      - name: Install Dependencies
+      - name: Install All Dependencies
         run: |
           npm install
-          npm install framer-motion # إجبار السيرفر على تثبيت المكتبة المفقودة
-        
-      - name: Build Web App
+          npm install framer-motion
+          
+      - name: Build Web Application
         run: npm run build
         
-      - name: Build Android
+      - name: Build Android Project
         run: |
           npx cap add android || true
           npx cap sync android
           cd android
           ./gradlew assembleDebug
           
-      - name: Upload APK
+      - name: Upload APK File
         uses: actions/upload-artifact@v4
         with:
           name: Dardshati-APK
