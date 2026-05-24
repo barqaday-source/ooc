@@ -2,6 +2,7 @@
 // Supabase Client - عميل الاتصال بقاعدة البيانات
 // ====================================================================
 
+import { Capacitor } from '@capacitor/core';
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://jmsmrojtlstppnpwmkkk.supabase.co";
@@ -13,7 +14,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+    // إذا كنا داخل تطبيق Native استخدم تخزين Capacitor
+    // وإذا كنا على المتصفح استخدم localStorage
+    storage: Capacitor.isNativePlatform() ? undefined : window.localStorage,
   },
   realtime: { params: { eventsPerSecond: 10 } },
 });
