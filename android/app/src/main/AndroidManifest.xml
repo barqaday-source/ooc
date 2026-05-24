@@ -5,10 +5,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- منع الكروت الافتراضية للـ autofill -->
+    <!-- شيل هذا السطر اذا ما تستخدم الكاميرا -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
     <uses-feature android:name="android.software.voice_recognizers" android:required="false" />
 
     <application
@@ -19,7 +20,8 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true"
-        android:hardwareAccelerated="true">
+        android:hardwareAccelerated="true"
+        android:requestLegacyExternalStorage="true">
 
         <activity
             android:name=".MainActivity"
@@ -27,7 +29,7 @@
             android:label="@string/title_activity_main"
             android:launchMode="singleTask"
             android:theme="@style/AppTheme.NoActionBarLaunch"
-            android:windowSoftInputMode="adjustNothing"
+            android:windowSoftInputMode="adjustResize"
             android:exported="true">
 
             <intent-filter>
