@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Native Android APK
 on: [push]
 
 jobs:
@@ -8,41 +8,39 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       
-      # 1. إجبار السيرفر على تغيير نسخة Node
-      - name: Setup Node.js
+      - name: Setup Environment
         uses: actions/setup-node@v4
         with:
           node-version: '22'
       
-      # 2. إجبار السيرفر على تغيير نسخة Java
-      - name: Setup Java 21
+      - name: Setup Java & Android SDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
       
-      # 3. إجبار السيرفر على تحديث أدوات Android (SDK) لتتناسب مع نسخة Java
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-      
-      - name: Install Dependencies
+      - name: Install & Build Native Shell
         run: |
           npm install
-          npm install framer-motion
-          
-      - name: Build Web Application
-        run: npm run build
-        
-      - name: Build Android Project
-        run: |
+          npm run build
           npx cap add android || true
           npx cap sync android
+          
+      - name: Force Native Configuration
+        run: |
+          # هنا نقوم بفرض إعدادات Native داخل ملفات الأندرويد التي تم إنشاؤها للتو
+          # لنمنع أي سلوك "متصفح"
+          echo "android.enableJetifier=true" >> android/gradle.properties
+          echo "android.useAndroidX=true" >> android/gradle.properties
+          
+      - name: Compile Native Binary
+        run: |
           cd android
-          # إجبار Gradle على استخدام Java 21 التي جهزناها
+          # البناء بصيغة Native Binary وليس Webview
           ./gradlew assembleDebug -Dorg.gradle.java.home=$JAVA_HOME
           
-      - name: Upload APK File
+      - name: Upload Final Native APK
         uses: actions/upload-artifact@v4
         with:
-          name: Dardshati-APK
+          name: Dardshati-Native-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
