@@ -3,4 +3,3 @@
   "GOOGLE_CLIENT_ID_WEB": "62134907551-t9cac5jbefl8o6pl1epbae1p8dscipj8.apps.googleusercontent.com",
   "SIGNING_CONFIG_ENABLED": true
 }
-
