@@ -1,5 +1,5 @@
 // ====================================================================
-// ChatRoom - غرفة محادثة Realtime + وسائط + Presence + Typing
+// PublicChatRoom - غرفة محادثة عامة Realtime + وسائط + حضور
 // ====================================================================
 
 import { useEffect, useRef, useState, FormEvent, ChangeEvent } from "react";
@@ -16,7 +16,7 @@ import VoiceRecorder from "@/components/VoiceRecorder";
 import VoicePlayer from "@/components/VoicePlayer";
 import TypingIndicator from "@/components/TypingIndicator";
 import { uploadFile, compressImage } from "@/lib/upload";
-import { ArrowRight, Send, Loader2, Settings2, Users, Trash2, EyeOff, X, Image as ImageIcon, Pencil, CheckCheck, Check, Reply, ZoomIn, Lock } from "lucide-react";
+import { ArrowRight, Send, Loader2, Settings2, Users, Trash2, EyeOff, X, Image as ImageIcon, Pencil, CheckCheck, Check, Reply, ZoomIn } from "lucide-react";
 import { toast } from "sonner";
 import { useReadReceipts } from "@/hooks/useReadReceipts";
 
@@ -27,21 +27,11 @@ type ReplyData = {
   messageType: string;
 };
 
-type OtherUserProfile = {
-  id: string;
-  display_name: string | null;
-  username: string | null;
-  avatar_url: string | null;
-  last_seen: string | null;
-  is_online?: boolean;
-};
-
-export default function ChatRoom() {
+export default function PublicChatRoom() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
   const { user, profile, isAdmin } = useAuth();
   const [room, setRoom] = useState<Room | null>(null);
-  const [otherUser, setOtherUser] = useState<OtherUserProfile | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [actionMsgId, setActionMsgId] = useState<string | null>(null);
@@ -68,8 +58,6 @@ export default function ChatRoom() {
   const { markRead } = useUnreadCounts(user?.id?? null, roomId? [roomId] : []);
   const { isMessageRead } = useReadReceipts(roomId?? null, user?.id?? null);
 
-  const isPrivateChat = room?.type === 'private';
-
   useEffect(() => {
     if (!roomId ||!user?.id) return;
 
@@ -95,55 +83,24 @@ export default function ChatRoom() {
          .from("rooms")
          .select("*")
          .eq("id", roomId)
+         .eq("type", "public")
          .maybeSingle();
 
-        if (roomErr) {
+        if (roomErr ||!roomData) {
           console.error('Room load error:', roomErr);
-          toast.error("فشل تحميل الغرفة", { description: roomErr.message });
+          toast.error("الغرفة غير موجودة أو ليست عامة");
+          navigate("/chat");
           return;
         }
 
-        const currentRoom = roomData as Room | null;
-        setRoom(currentRoom);
-
-        // للخاص: جيب الطرف الثاني
-        if (currentRoom?.type === 'private') {
-          const { data: members } = await supabase
-           .from("room_members")
-           .select("user_id")
-           .eq("room_id", roomId)
-           .neq("user_id", user.id)
-           .maybeSingle();
-
-          if (members?.user_id) {
-            const { data: userData } = await supabase
-             .from("profiles")
-             .select("id, display_name, username, avatar_url, last_seen")
-             .eq("id", members.user_id)
-             .maybeSingle();
-
-            if (userData) {
-              setOtherUser({
-               ...userData,
-                is_online: isUserOnline(userData.id)
-              });
-            }
-          }
-        }
+        setRoom(roomData as Room);
       } catch (err) {
-        console.error('ChatRoom init error:', err);
+        console.error('PublicChatRoom init error:', err);
       }
     };
 
     joinRoom();
-  }, [roomId, user?.id, isUserOnline]);
-
-  // تحديث حالة الاتصال للطرف الثاني فقط في الخاص
-  useEffect(() => {
-    if (otherUser && isPrivateChat) {
-      setOtherUser(prev => prev? {...prev, is_online: isUserOnline(prev.id) } : null);
-    }
-  }, [isUserOnline, otherUser?.id, isPrivateChat]);
+  }, [roomId, user?.id, navigate]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -232,19 +189,6 @@ export default function ChatRoom() {
     return messages.find(m => m.id === replyToId) || null;
   };
 
-  const formatLastSeen = (lastSeen: string | null) => {
-    if (!lastSeen) return "غير متصل";
-    const diff = Date.now() - new Date(lastSeen).getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (minutes < 1) return "نشط الآن";
-    if (minutes < 60) return `آخر ظهور قبل ${minutes} د`;
-    if (hours < 24) return `آخر ظهور قبل ${hours} س`;
-    return `آخر ظهور قبل ${days} ي`;
-  };
-
   if (!roomId) return null;
 
   return (
@@ -252,62 +196,28 @@ export default function ChatRoom() {
       <header className="h-20 mx-3 mt-3 px-4 flex items-center gap-3 glass-thick rounded-3xl safe-top sticky top-3 z-40 shadow-glassy">
         <button onClick={() => navigate("/chat")} className="p-2 -mr-2"><ArrowRight className="w-5 h-5" /></button>
 
-        {isPrivateChat && otherUser? (
-          <>
-            <button
-              onClick={() => navigate(`/u/${otherUser.id}`)}
-              className="shrink-0 active:scale-95"
-            >
-              <UserAvatar
-                src={otherUser.avatar_url}
-                name={otherUser.display_name || otherUser.username}
-                size="lg"
-                online={otherUser.is_online}
-              />
-            </button>
-            <div className="flex-1 min-w-0">
-              <h2 className="font-bold text-lg truncate flex items-center gap-2">
-                <Lock className="w-4 h-4 text-success" strokeWidth={2.5} />
-                {otherUser.display_name || otherUser.username}
-              </h2>
-              <p className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
-                {otherUser.is_online? (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-success inline-block animate-pulse" />
-                    نشط الآن
-                  </>
-                ) : (
-                  formatLastSeen(otherUser.last_seen)
-                )}
-              </p>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex-1 min-w-0">
-              <h2 className="font-bold text-lg truncate flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" strokeWidth={2.5} />
-                {room?.name || "..."}
-              </h2>
-              <p className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
-                {room?.status === "pending"? (
-                  "بانتظار اعتماد المدير"
-                ) : room?.is_closed? (
-                  "مغلقة مؤقتاً"
-                ) : (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />
-                    {onlineCount} متصل الآن
-                  </>
-                )}
-              </p>
-            </div>
-            {isOwner && (
+        <div className="flex-1 min-w-0">
+          <h2 className="font-bold text-lg truncate flex items-center gap-2">
+            <Users className="w-4 h-4 text-primary" strokeWidth={2.5} />
+            {room?.name || "..."}
+          </h2>
+          <p className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
+            {room?.status === "pending"? (
+              "بانتظار اعتماد المدير"
+            ) : room?.is_closed? (
+              "مغلقة مؤقتاً"
+            ) : (
               <>
-                <button onClick={() => navigate(`/rooms/${roomId}/members`)} className="p-2"><Users className="w-5 h-5" /></button>
-                <button onClick={() => navigate(`/rooms/${roomId}/edit`)} className="p-2"><Settings2 className="w-5 h-5" /></button>
+                <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />
+                {onlineCount} متصل الآن
               </>
             )}
+          </p>
+        </div>
+        {isOwner && (
+          <>
+            <button onClick={() => navigate(`/rooms/${roomId}/members`)} className="p-2"><Users className="w-5 h-5" /></button>
+            <button onClick={() => navigate(`/rooms/${roomId}/edit`)} className="p-2"><Settings2 className="w-5 h-5" /></button>
           </>
         )}
       </header>
@@ -317,7 +227,7 @@ export default function ChatRoom() {
           <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : messages.length === 0? (
           <div className="text-center py-16 text-muted-foreground text-sm">
-            {isPrivateChat? "ابدأ المحادثة المشفرة 🔒" : "كن أول من يكتب رسالة 👋"}
+            كن أول من يكتب رسالة 👋
           </div>
         ) : (
           messages.map((msg) => {
@@ -343,12 +253,12 @@ export default function ChatRoom() {
                     src={msg.profile?.avatar_url}
                     name={msg.profile?.display_name || msg.profile?.username}
                     size="sm"
-                    online={online &&!mine &&!isPrivateChat}
+                    online={online &&!mine}
                   />
                 </button>
                 <div className={`max-w-[75%] ${mine? "items-end" : "items-start"} flex flex-col`}>
                   {!mine && (
-                    <span className="text- text-muted-foreground mb-1 px-1 inline-flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground mb-1 px-1 inline-flex items-center gap-1">
                       {msg.profile?.display_name || msg.profile?.username}
                       {authorIsAdmin && <AdminBadge size="xs" />}
                     </span>
@@ -383,7 +293,7 @@ export default function ChatRoom() {
                            ? "px-3 py-2 bg-foreground/5 border border-foreground/20 rounded-2xl rounded-tl-none"
                             : mine
                              ? "px-3 py-2 bg-foreground text-background rounded-2xl rounded-tr-none"
-                              : "px-3 py-2 glass-card!rounded-2xl rounded-tl-none!shadow-none"
+                              : "px-3 py-2 glass-card rounded-2xl rounded-tl-none shadow-none"
                     } ${isHighlighted? "ring-2 ring-primary ring-offset-2" : ""}`}
                   >
                     {msg.message_type === "image" && msg.media_url? (
@@ -410,7 +320,7 @@ export default function ChatRoom() {
                       <span>
                         {msg.content}
                         {msg.edited_at && (
-                          <span className="opacity-60 text- mr-1">(معدّلة)</span>
+                          <span className="opacity-60 text-xs mr-1">(معدّلة)</span>
                         )}
                       </span>
                     )}
@@ -570,8 +480,8 @@ export default function ChatRoom() {
             <div className="mx-3 mb-1 px-3 py-2 rounded-2xl glass-thick border border-white/50 flex items-center gap-2 anim-slide-up">
               <Reply className="w-3.5 h-3.5 text-foreground/60 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text- font-bold text-foreground/80">{replyTo.name}</p>
-                <p className="text- text-foreground/60 truncate">{replyTo.preview}</p>
+                <p className="text-xs font-bold text-foreground/80">{replyTo.name}</p>
+                <p className="text-xs text-foreground/60 truncate">{replyTo.preview}</p>
               </div>
               <button onClick={() => setReplyTo(null)} className="p-1" aria-label="إلغاء الرد">
                 <X className="w-3.5 h-3.5" />
@@ -618,7 +528,7 @@ export default function ChatRoom() {
               ref={inputRef}
               value={input}
               onChange={handleInputChange}
-              placeholder={isPrivateChat? "رسالة مشفرة..." : "اكتب رسالة..."}
+              placeholder="اكتب رسالة..."
               disabled={sending ||!profile}
               dir="rtl"
               className="flex-1 h-12 px-5 rounded-full bg-primary/50 border-white/60 placeholder:text-foreground/40 focus:border-white outline-none text-sm transition min-w-0 text-right"
@@ -628,4 +538,4 @@ export default function ChatRoom() {
       )}
     </div>
   );
-}
+    }
