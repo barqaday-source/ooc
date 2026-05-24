@@ -37,10 +37,19 @@ jobs:
       - name: Remove old android folder
         run: rm -rf android
 
+      - name: Force Package Name to com.drdshati.app
+        run: |
+          sed -i 's/"appId": ".*"/"appId": "com.drdshati.app"/' capacitor.config.ts
+          sed -i 's/"appId": ".*"/"appId": "com.drdshati.app"/' capacitor.config.json || true
+
       - name: Add Android platform
         run: |
           npx cap add android
           npx cap sync android
+
+      - name: Copy google-services.json
+        run: |
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
 
       - name: Decode Your Fixed Keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/dardshati-release.keystore
@@ -107,13 +116,15 @@ jobs:
           cd android
           yes | sdkmanager --licenses || true
           chmod +x gradlew
-        ./gradlew assembleRelease --stacktrace
+         ./gradlew assembleRelease --stacktrace
 
       - name: Print Fixed SHA-1 once
         run: |
           echo "=== SHA-1 الثابت مالك ==="
           keytool -list -v -keystore android/app/dardshati-release.keystore -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" -alias "${{ secrets.ANDROID_KEY_ALIAS }}" | grep "SHA1"
-          echo "هذا الـ SHA-1 ثابت للأبد. ضيفه مرة وحدة بجوجل وانساه"
+          echo "Package Name المستخدم:"
+          grep "applicationId" android/app/build.gradle
+          echo "هذا الـ SHA-1 ثابت للأبد. تأكد موجود بجوجل ويا com.drdshati.app"
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
