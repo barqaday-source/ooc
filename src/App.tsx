@@ -16,6 +16,7 @@ import AuthPage from "./pages/Auth.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import ChatList from "./pages/ChatList.tsx";
 import ChatRoom from "./pages/ChatRoom.tsx";
+import PrivateChat from "./pages/PrivateChat.tsx"; // الجديد
 import Rooms from "./pages/Rooms.tsx";
 import EditRoom from "./pages/EditRoom.tsx";
 import RoomMembers from "./pages/RoomMembers.tsx";
@@ -58,6 +59,8 @@ const AppContent = () => {
 
             <Route path="/chat" element={<ProtectedRoute><ChatList /></ProtectedRoute>} />
             <Route path="/chat/:roomId" element={<ProtectedRoute><ChatRoom /></ProtectedRoute>} />
+            <Route path="/dm/:roomId" element={<ProtectedRoute><PrivateChat /></ProtectedRoute>} />
+            
             <Route path="/rooms" element={<ProtectedRoute><Rooms /></ProtectedRoute>} />
             <Route path="/rooms/:roomId/edit" element={<ProtectedRoute><EditRoom /></ProtectedRoute>} />
             <Route path="/rooms/:roomId/members" element={<ProtectedRoute><RoomMembers /></ProtectedRoute>} />
