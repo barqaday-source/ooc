@@ -6,13 +6,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
       
+      # التعديل هنا: تثبيت المكتبات بشكل صريح قبل البناء
       - name: Install Dependencies
-        run: npm install
+        run: |
+          npm install
+          npm install framer-motion # إجبار السيرفر على تثبيت المكتبة المفقودة
         
       - name: Build Web App
         run: npm run build
