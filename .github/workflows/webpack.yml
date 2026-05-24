@@ -11,13 +11,9 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version-file: 'package.json' }
 
-      - name: Install and Build
+      - name: Build Web
         run: |
-          # حذف أي تعارضات سابقة
-          rm -rf node_modules package-lock.json
-          # تثبيت المكاتب بالقوة لتجاوز صراع الإصدارات
           npm install --legacy-peer-deps
-          npm install @capacitor/core@latest @capacitor/android@latest @capacitor/cli@latest @codetrix-studio/capacitor-google-auth@latest --legacy-peer-deps
           npm run build
           npx cap add android
 
@@ -26,23 +22,21 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Patch Android Config
+      - name: Create Keystore and Build
         run: |
-          # 1. إجبار التطبيق على فتح المايكروفون (بدون كروت النظام المزعجة)
-          sed -i '/<uses-permission/d' android/app/src/main/AndroidManifest.xml
-          sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.CAMERA" />' android/app/src/main/AndroidManifest.xml
+          # 1. إنشاء مفتاح توقيع ثابت إذا لم يكن موجوداً
+          keytool -genkey -v -keystore my-release-key.jks -alias my-alias -keyalg RSA -keysize 2048 -validity 10000 -storepass password123 -keypass password123 -dname "CN=Joud, OU=Chat, O=App, L=Basra, C=IQ"
           
-          # 2. تحويل تسجيل الدخول من متصفح إلى Native (حل الـ disallowed_useragent)
-          sed -i '/import com.getcapacitor.BridgeActivity;/a import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth;' android/app/src/main/java/com/joud/chat/MainActivity.java
-          sed -i '/public class MainActivity extends BridgeActivity {/a \  @Override\n  public void onCreate(Bundle savedInstanceState) {\n    registerPlugin(GoogleAuth.class);\n    super.onCreate(savedInstanceState);\n  }' android/app/src/main/java/com/joud/chat/MainActivity.java
-
-          npx cap sync android
+          # 2. استخراج البصمة SHA-1 (سأعرضها لك في سجلات السيرفر)
+          keytool -list -v -keystore my-release-key.jks -storepass password123 | grep SHA1
           
-      - name: Build APK
-        run: |
+          # 3. توقيع التطبيق باستخدام هذا المفتاح
           cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug \
+            -Pandroid.injected.signing.store.file=../my-release-key.jks \
+            -Pandroid.injected.signing.store.password=password123 \
+            -Pandroid.injected.signing.key.alias=my-alias \
+            -Pandroid.injected.signing.key.password=password123
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
