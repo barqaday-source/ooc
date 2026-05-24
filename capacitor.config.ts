@@ -1,24 +1,34 @@
 import { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.dardshati.app", // يجب أن يطابق تماماً "Package Name" في Firebase
+  appId: "com.dardshati.app",
   appName: "دردشة",
   webDir: "dist",
   server: {
     androidScheme: "https",
+    cleartext: true
   },
   android: {
-    allowMixedContent: true, // للسماح بتحميل الموارد عبر HTTPS
+    allowMixedContent: true,
+    captureInput: true,
+    webContentsDebuggingEnabled: false
   },
   plugins: {
     GoogleAuth: {
       scopes: ["profile", "email"],
-      // الـ Client ID الخاص بـ Android (للتطبيق نفسه)
       androidClientId: "62134907551-t9cac5jbefl8o6pl1epbae1p8dscipj8.apps.googleusercontent.com",
-      // الـ Client ID الخاص بـ Web (يُستخدم للـ OIDC مع Supabase)
       serverClientId: "62134907551-t9cac5jbefl8o6pl1epbae1p8dscipj8.apps.googleusercontent.com",
       forceCodeForRefreshToken: true,
     },
+    StatusBar: {
+      style: "dark",
+      backgroundColor: "#B6D6FF",
+      overlaysWebView: false
+    },
+    Keyboard: {
+      resize: "none", // الأهم: يمنع تمدد التطبيق مع الكيبورد
+      resizeOnFullScreen: true
+    }
   },
 };
 
