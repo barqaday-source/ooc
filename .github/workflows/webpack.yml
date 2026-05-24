@@ -11,31 +11,32 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version-file: 'package.json' }
 
-      - name: Setup Android Project
+      - name: Build Web and Prepare Android
         run: |
           npm install --legacy-peer-deps
-          npm install @capacitor/android @capacitor/cli @codetrix-studio/capacitor-google-auth framer-motion lucide-react --legacy-peer-deps
+          npm install @capacitor/android @capacitor/cli @codetrix-studio/capacitor-google-auth
           npm run build
-          # إنشاء مجلد الأندرويد من الصفر
           npx cap add android
-          
-          # الآن السيرفر لديه المجلد، سنقوم بنسخ ملفاتك إليه (تأكد من وجود المجلد android_templates في مستودعك)
-          mkdir -p android/app/src/main/java/com/joud/chat/
-          cp android_templates/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-          cp android_templates/MainActivity.java android/app/src/main/java/com/joud/chat/MainActivity.java
 
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Build APK
+      - name: Patch and Build
         run: |
-          # تحديث الـ SDK داخل المجلد الذي تم إنشاؤه للتو
-          sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' android/app/build.gradle
-          sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
-          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
+          # 1. تحديث الأذونات الأساسية (الكاميرا، المايك، والإنترنت)
+          sed -i '/<uses-permission/d' android/app/src/main/AndroidManifest.xml
+          sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.RECORD_AUDIO" />\n<uses-permission android:name="android.permission.CAMERA" />' android/app/src/main/AndroidManifest.xml
           
+          # 2. حقن الـ Google Auth في MainActivity ليعمل كتطبيق وليس كصفحة ويب
+          sed -i '/import com.getcapacitor.BridgeActivity;/a import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth;' android/app/src/main/java/com/joud/chat/MainActivity.java
+          sed -i '/public class MainActivity extends BridgeActivity {/a \  @Override\n  public void onCreate(Bundle savedInstanceState) {\n    registerPlugin(GoogleAuth.class);\n    super.onCreate(savedInstanceState);\n  }' android/app/src/main/java/com/joud/chat/MainActivity.java
+
+          # 3. إعداد الـ Caching ليعمل التطبيق بدون إنترنت (بدلاً من الصفحة الفارغة)
+          sed -i '/super.onCreate/a \    WebView webView = getBridge().getWebView();\n    webView.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);\n    webView.getSettings().setDomStorageEnabled(true);' android/app/src/main/java/com/joud/chat/MainActivity.java
+
+          npx cap sync android
           cd android
           chmod +x gradlew
           ./gradlew clean assembleDebug
