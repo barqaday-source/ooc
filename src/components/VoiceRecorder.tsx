@@ -75,12 +75,18 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
 
   const start = async () => {
     try {
-      // 1. طلب الإذن من Capacitor - مهم للأندرويد APK
-      const status = await VoiceRecorder.requestAudioRecordingPermission();
+      // --- التحقق القسري من الإذن قبل أي شيء ---
+      let status = await VoiceRecorder.hasAudioRecordingPermission();
+
       if (!status.value) {
-        alert("يرجى منح إذن الميكروفون من إعدادات الهاتف");
+        status = await VoiceRecorder.requestAudioRecordingPermission();
+      }
+
+      if (!status.value) {
+        alert("تم رفض إذن الميكروفون. يرجى تفعيله يدوياً من إعدادات الهاتف: الإعدادات > التطبيقات > تطبيقك > الأذونات > الميكروفون");
         return;
       }
+      // -----------------------------------------
 
       // 2. بعد الإذن، نشغل getUserMedia عادي
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -129,8 +135,8 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
       setBlob(null);
       timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
     } catch (e) {
-      console.error(e);
-      alert("فشل الوصول للميكروفون. تأكد من الإذن في إعدادات التطبيق");
+      console.error("خطأ فادح في بدء التسجيل:", e);
+      alert("فشل الوصول للميكروفون. تأكد من تثبيت إضافة capacitor-voice-recorder وتشغيل npx cap sync android");
     }
   };
 
@@ -236,4 +242,4 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
       </button>
     </div>
   );
-                }
+          }
