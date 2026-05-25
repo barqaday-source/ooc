@@ -9,7 +9,8 @@ import { useAppSettings } from "@/hooks/useAppSettings";
 import { supabase } from "@/lib/supabase";
 import { Loader2, Lock, User, ArrowRight, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import appConfig from "@/lib/app.config.json"; // ملف المفاتيح الصارمة
+import appConfig from "@/lib/app.config.json";
+import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
 
 type Mode = "login" | "signup" | "forgot";
 
@@ -30,6 +31,15 @@ export default function AuthPage() {
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  // تهيئة GoogleAuth مرة وحدة عند تحميل الصفحة
+  useEffect(() => {
+    GoogleAuth.initialize({
+      clientId: appConfig.GOOGLE_CLIENT_ID_ANDROID,
+      scopes: ["profile", "email"],
+      grantOfflineAccess: true,
+    });
+  }, []);
+
   useEffect(() => {
     const m = params.get("mode");
     if (m === "signup" || m === "login" || m === "forgot") setMode(m as Mode);
@@ -39,11 +49,6 @@ export default function AuthPage() {
   if (user) return <Navigate to="/chat" replace />;
 
   const appName = settings?.app_name || "دردشاتي";
-
-  const getRedirectURL = () => {
-    const url = window.location.origin;
-    return `${url}/chat`;
-  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -93,7 +98,7 @@ export default function AuthPage() {
 
     const { error } =
       mode === "login"
-      ? await signIn(email, password)
+       ? await signIn(email, password)
         : await signUp(email, password, username.trim(), true);
 
     setSubmitting(false);
@@ -110,23 +115,41 @@ export default function AuthPage() {
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: getRedirectURL(),
-        queryParams: {
-          client_id: appConfig.GOOGLE_CLIENT_ID_ANDROID, // إجبار النظام على هذا المعرف فقط
-          access_type: "offline",
-          prompt: "select_account",
-          // هذا الخيار يجبر النظام على عدم استخدام كروت داخلية ويفتح متصفح النظام
-          signing_config_enabled: appConfig.SIGNING_CONFIG_ENABLED,
-        },
-        skipBrowserRedirect: false, // يجبر Supabase على فتح متصفح النظام Native في Capacitor
-      },
-    });
-    if (error) {
+
+    try {
+      // 1. تسجيل دخول Google Native
+      const googleUser = await GoogleAuth.signIn();
+
+      // 2. نتأكد ان فيه idToken
+      if (!googleUser.authentication.idToken) {
+        throw new Error("Google لم يرجع idToken");
+      }
+
+      // 3. نرسل التوكن لـ Supabase
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: "google",
+        token: googleUser.authentication.idToken,
+        access_token: googleUser.authentication.accessToken,
+      });
+
+      if (error) throw error;
+
+      toast.success(`أهلاً بعودتك إلى ${appName}`);
+      navigate("/chat");
+    } catch (error: any) {
+      const errorCode = error.code || error.error || "UNKNOWN";
+      const errorMessage = error.message || error.toString();
+
+      console.error("تفاصيل خطأ Google:", error);
+
+      // طباعة السبب كامل على الشاشة
+      alert(`فشل تسجيل الدخول\nالكود: ${errorCode}\nالرسالة: ${errorMessage}`);
+
+      toast.error("فشل الدخول عبر Google", {
+        description: `${errorCode}: ${errorMessage}`,
+      });
+    } finally {
       setGoogleLoading(false);
-      toast.error("فشل الدخول عبر Google", { description: error.message });
     }
   };
 
@@ -293,24 +316,24 @@ export default function AuthPage() {
       </div>
 
       <style>{`
-  .auth-blob {
+ .auth-blob {
           position: absolute;
           border-radius: 50%;
           filter: blur(70px);
           animation: auth-float 18s ease-in-out infinite;
         }
-  .auth-blob-1 {
+ .auth-blob-1 {
           width: 350px; height: 350px;
           background: hsl(var(--primary) / 0.7);
           top: -120px; right: -100px;
         }
-  .auth-blob-2 {
+ .auth-blob-2 {
           width: 300px; height: 300px;
           background: hsl(var(--accent) / 0.5);
           bottom: -100px; left: -80px;
           animation-delay: 6s;
         }
-  .auth-blob-3 {
+ .auth-blob-3 {
           width: 260px; height: 260px;
           background: hsl(var(--primary-deep) / 0.5);
           top: 40%; right: 30%;
