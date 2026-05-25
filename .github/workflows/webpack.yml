@@ -13,10 +13,11 @@ jobs:
         run: |
           find . -type f -exec sed -i 's/com.joud.chat/com.drdshati.app/g' {} +
 
+      # 2. إعداد Node الإصدار 20 لحل مشاكل Supabase
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -24,27 +25,26 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      # 3. تثبيت الاعتماديات مع تجاوز التعارض
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
       - name: Build Web Assets
         run: npm run build
 
-      # 2. خطوة التحديث والمزامنة مع تجاوز التعارض
+      # 4. التزامن الصارم (الترتيب هنا يمنع اختفاء الملفات)
       - name: Sync Capacitor
         run: |
-          # تثبيت الإضافات مع تجاوز قيود الإصدارات
-          npm install --legacy-peer-deps
-          
-          # إنشاء مشروع الأندرويد إذا كان مفقوداً
-          npx cap add android || echo "Android project already exists"
-          
-          # تحديث ومزامنة الملفات
-          npx cap update android
+          # إضافة الأندرويد إذا لم يكن موجوداً
+          npx cap add android || echo "Android already exists"
+          # نسخ ملفات الويب والـ assets أولاً (حل مشكلة ENOENT)
           npx cap copy android
+          # تحديث الإضافات
+          npx cap update android
+          # المزامنة النهائية
           npx cap sync android
 
-      # 3. خطوة البناء النظيف
+      # 5. البناء
       - name: Build APK
         run: |
           cd android
@@ -52,7 +52,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean assembleDebug
 
-      # 4. رفع الملف بمسار شامل يضمن العثور عليه
+      # 6. رفع الملف
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
