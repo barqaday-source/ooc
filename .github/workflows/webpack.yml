@@ -36,6 +36,17 @@ jobs:
           echo "--- Checking AndroidManifest.xml ---"
           cat android/app/src/main/AndroidManifest.xml
 
+      - name: Verify Plugin Configuration
+        run: |
+          echo "--- Verifying Plugin Registration in MainActivity.java ---"
+          # البحث عن GoogleAuth و VoiceRecorder في ملف MainActivity
+          if grep -q "GoogleAuth" android/app/src/main/java/*/MainActivity.java && grep -q "VoiceRecorder" android/app/src/main/java/*/MainActivity.java; then
+            echo "All plugins found!"
+          else
+            echo "::error:: Missing Plugin Configuration! Ensure GoogleAuth and VoiceRecorder are registered in MainActivity.java"
+            exit 1
+          fi
+
       - name: Build and Sign APK
         run: |
           # نستخدم المسار الكامل للملف لضمان عدم ضياعه
