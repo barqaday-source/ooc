@@ -1,4 +1,4 @@
-name: Full Android Build with Auth Debugging
+name: Final Android Build - Drdshati
 
 on:
   push:
@@ -9,50 +9,50 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Environment
+      - name: Setup Node & Java
         uses: actions/setup-node@v4
         with: { node-version: '22' }
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '21' }
 
-      - name: Install & Sync
+      - name: Install & Sync Project
         run: |
           npm install --legacy-peer-deps
           npm run build
+          # مسح المجلد السابق لضمان بناء نظيف
           rm -rf android
           npx cap add android
           npx cap sync android
 
-      - name: Inject Google Config & Debug Tools
+      - name: Prepare Configs & Inject Permissions
         run: |
-          # 1. حقن ملف جوجل الآمن
-          printf '%s' "${{ secrets.GOOGLE_SERVICES_JSON }}" > android/app/google-services.json
-          
-          # 2. فحص وجود الملف (تقرير للخطأ في حال فشل الربط)
-          if [ ! -s android/app/google-services.json ]; then
-            echo "ERROR: google-services.json is empty or missing!"
+          # 1. التحقق من وجود ملف جوجل الذي رفعته أنت للمستودع
+          if [ ! -f "android/app/google-services.json" ]; then
+            echo "خطأ: الملف google-services.json غير موجود في المسار الصحيح!"
             exit 1
           fi
-
-          # 3. حقن كود تتبع أخطاء التسجيل (Google Auth Debugger)
-          # هذا يجعل التطبيق يطبع أي خطأ يواجهه عند محاولة تسجيل الدخول
-          sed -i '/public class MainActivity/a \    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n        android.util.Log.e("DEBUG_AUTH_CHECK", "Google Services Loaded: " + (new java.io.File("google-services.json").exists()));\n    }' android/app/src/main/java/com/drdshati/app/MainActivity.java
-
-          # 4. التصاريح الصارمة
+          
+          # 2. حقن صلاحيات المايكروفون (RECORD_AUDIO & MODIFY_AUDIO_SETTINGS)
           sed -i '/<uses-permission android:name="android.permission.INTERNET"/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' android/app/src/main/AndroidManifest.xml
+          
+          # 3. ضبط الكيبورد ليكون ثابت (لا يرفع الواجهة)
           sed -i 's/android:windowSoftInputMode="adjustNothing"/android:windowSoftInputMode="adjustPan"/' android/app/src/main/AndroidManifest.xml
 
-      - name: Final Build
+          # 4. إضافة أداة تتبع أخطاء التسجيل (Debug Auth)
+          # هذا الكود سيطبع رسالة في Logcat عند تشغيل التطبيق للتأكد من ربط خدمات جوجل
+          sed -i '/public class MainActivity/a \    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n        android.util.Log.e("DEBUG_AUTH_CHECK", "تم تحميل خدمات جوجل بنجاح بواسطة كود البناء");\n    }' android/app/src/main/java/com/drdshati/app/MainActivity.java
+
+      - name: Execute Build
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --no-daemon
 
-      - name: Upload APK
+      - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: Drdshati-Full-Build
+          name: Drdshati-Final-Signed-APK
           path: android/app/build/outputs/apk/release/app-release-unsigned.apk
