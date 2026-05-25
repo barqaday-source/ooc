@@ -17,7 +17,10 @@ jobs:
           node-version: '18'
 
       - name: Install Dependencies
-        run: npm install --legacy-peer-deps
+        run: |
+          npm install --legacy-peer-deps
+          npm install @codetrix-studio/capacitor-google-auth
+          npm install capacitor-voice-recorder
 
       - name: Build Web Assets
         run: npm run build
