@@ -31,10 +31,11 @@ jobs:
           npm cache clean --force
           npm install --legacy-peer-deps
 
-      - name: Force Strict Package Name (Fixing dardshati -> drdshati)
+      - name: Inject Firebase Config
         run: |
-          find . -type f -name "capacitor.config.*" -exec sed -i 's/com\.dardshati\.app/com.drdshati.app/g' {} +
-          find . -type f -name "package.json" -exec sed -i 's/com\.dardshati\.app/com.drdshati.app/g' {} +
+          cat > android/app/google-services.json << 'EOF'
+          ${{ secrets.GOOGLE_SERVICES_JSON }}
+          EOF
 
       - name: Inject Google Client IDs
         run: |
