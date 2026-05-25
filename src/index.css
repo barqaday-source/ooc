@@ -48,6 +48,8 @@
     --shadow-md: 0 8px 32px hsl(212 60% 40% / 0.10);
     --shadow-lg: 0 20px 60px hsl(212 60% 40% / 0.15);
     --shadow-glass: 0 8px 32px hsl(212 60% 40% / 0.12);
+    /* هذه المتغيرات تتعرف تلقائياً على طول أزرار النظام وتترك مسافة */
+    --safe-area-bottom: env(safe-area-inset-bottom);
   }
 
  .dark {
@@ -77,7 +79,7 @@
 
   body {
     @apply text-foreground antialiased;
-    background-color: var(--app-bg);
+    background-color: white !important;
     background-image: var(--gradient-bg);
     background-attachment: fixed;
     font-family: 'Cairo', system-ui, sans-serif;
@@ -86,6 +88,8 @@
     transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
+    /* هنا نحدد أن التطبيق يجب أن ينتهي قبل أزرار النظام بمسافة معينة */
+    padding-bottom: var(--safe-area-bottom) !important;
 
     /* الحل النهائي لمنع التمدد */
     position: fixed;
@@ -116,6 +120,12 @@
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
     -webkit-box-shadow: 0 0 0 1000px hsl(var(--input)) inset!important;
+  }
+
+  /* إذا كان لديك شريط سفلي (Tab Bar مثلاً) */
+  ion-tab-bar {
+    padding-bottom: var(--safe-area-bottom) !important;
+    height: calc(50px + var(--safe-area-bottom)); /* جعل الشريط أنحف */
   }
 }
 
@@ -161,4 +171,4 @@
     transform: translateY(-1px);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
   }
-}
+    }
