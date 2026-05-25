@@ -8,12 +8,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # خطوة التنظيف العميق: البحث والاستبدال في كل الملفات
+      # 1. التنظيف العميق واستبدال الحزمة
       - name: Deep Clean & Force Rename
         run: |
-          echo "جاري البحث واستبدال الاسم القديم في كل المشروع..."
           find . -type f -exec sed -i 's/com.joud.chat/com.drdshati.app/g' {} +
-          echo "تم استبدال كل أثر لـ com.joud.chat بـ com.drdshati.app"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -32,20 +30,23 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
+      # 2. خطوة التزامن (ضرورية لدمج الأذونات والتعديلات الأخيرة)
       - name: Sync Capacitor
-        run: npx cap sync android
+        run: |
+          npm install
+          npx cap sync android
 
-      # خطوة بناء نظيفة جداً
+      # 3. خطوة البناء النظيف
       - name: Build APK
         run: |
           cd android
-          # إزالة أي مجلد build أو cache قديم قبل البناء
           rm -rf app/build .gradle
           chmod +x gradlew
           ./gradlew clean assembleDebug
 
+      # 4. رفع الملف بمسار شامل يضمن العثور عليه
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/*.apk
