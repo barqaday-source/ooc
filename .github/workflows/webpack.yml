@@ -16,20 +16,12 @@ jobs:
         with:
           node-version: '18'
 
-      # 1. تثبيت المكاتب مع تجاهل التعارضات
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      # 2. بناء ملفات الويب
       - name: Build Web Assets
         run: npm run build
 
-      # 3. فرض اسم الحزمة الصحيح في ملفات Capacitor
-      - name: Set Package ID
-        run: |
-          sed -i 's/"appId": ".*"/"appId": "com.drdshati.app"/g' capacitor.config.json
-
-      # 4. مزامنة أندرويد
       - name: Sync Capacitor
         run: npx cap sync android
 
@@ -39,7 +31,6 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
           
-      # 5. تنظيف مخلفات البناء القديمة والبناء من جديد بالتوقيع الصحيح
       - name: Build and Sign APK
         run: |
           cd android
