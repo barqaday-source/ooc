@@ -1,1 +1,29 @@
-{"installed":{"client_id":"62134907551-ofam7s8j4m4id3qtdqac6vrk7ui2d2o3.apps.googleusercontent.com","project_id":"skytalk-494018","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs"}}
+{
+  "project_info": {
+    "project_number": "159537926588",
+    "project_id": "my-chats-6313d",
+    "storage_bucket": "my-chats-6313d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:159537926588:android:a84f991e108f17b6b55bb9",
+        "android_client_info": {
+          "package_name": "com.drdshati.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4WapMcZyri_3TO2KxcwD1B_3USXBYinI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
