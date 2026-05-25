@@ -1,5 +1,9 @@
-name: Build Release APK - Fixed Signing
-on: [push]
+name: Build Strict Release APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -8,12 +12,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
 
-      - name: Setup Java
+      - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -21,50 +26,112 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: '11076708'
+          packages: 'platforms;android-34 build-tools;34.0.0 platform-tools'
 
       - name: Install Dependencies
-        run: npm install --legacy-peer-deps
+        run: |
+          rm -rf node_modules package-lock.json
+          npm cache clean --force
+          npm install --legacy-peer-deps
 
-      - name: Build Web App
+      - name: Strict Package Name Force (com.drdshati.app)
+        run: |
+          echo "جاري تعديل اسم الحزمة بشكل صارم في كل ملفات التكوين..."
+          sed -i 's/com.dardshati.app/com.drdshati.app/g' package.json || true
+          sed -i 's/com.dardshati.app/com.drdshati.app/g' capacitor.config.ts || true
+          sed -i 's/com.dardshati.app/com.drdshati.app/g' capacitor.config.json || true
+
+      - name: Build Web Production Assets
         run: npm run build
 
-      - name: Copy web assets to android
-        run: npx cap copy android
-
-      - name: Add google-services.json
-        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
-
-      - name: Add Release Keystore
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/dardshati-release.keystore
-
-      - name: Create signing.properties in correct path
+      - name: Recreate Android Native Platform Strictly
         run: |
-          cat > android/app/signing.properties <<EOF
-          storeFile=dardshati-release.keystore
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          rm -rf android
+          npx cap add android
+          npx cap sync android
+
+      - name: Inject Firebase google-services.json
+        run: |
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+
+      - name: Decode Production Keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/dardshati-release.keystore
+
+      - name: Inject Strict Signing Configurations into Gradle
+        run: |
+          cat >> android/app/build.gradle <<'EOF'
+          
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("dardshati-release.keystore")
+                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                      minifyEnabled false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  }
+                  debug {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
           EOF
 
-      - name: Inject Mic permissions
+      - name: Inject Microphone & Audio Permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<uses-permission android:name="android.permission.INTERNET"/a\ <uses-permission android:name="android.permission.RECORD_AUDIO" />\n <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST
+          sed -i '/<uses-permission android:name="android.permission.INTERNET"/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST
+          sed -i 's/android:windowSoftInputMode="adjustNothing"/android:windowSoftInputMode="adjustResize"/' $MANIFEST
 
-      - name: Register VoiceRecorder
+      - name: Register VoiceRecorder Plugin Safely
         run: |
           MAINACTIVITY=$(find android/app/src/main/java -name MainActivity.java)
-          grep -q "VoiceRecorder" $MAINACTIVITY || sed -i '/import com.getcapacitor.BridgeActivity;/a import capacitor.voice.recorder.VoiceRecorder;' $MAINACTIVITY
-          grep -q "registerPlugin(VoiceRecorder.class)" $MAINACTIVITY || sed -i '/super.onCreate(savedInstanceState);/a\ registerPlugin(VoiceRecorder.class);' $MAINACTIVITY
+          if [ -f "$MAINACTIVITY" ]; then
+            sed -i '/import com.getcapacitor.BridgeActivity;/a import capacitor.voice.recorder.VoiceRecorder;' $MAINACTIVITY || true
+            sed -i '/public class MainActivity extends BridgeActivity/a \    @Override
+    public void onCreate(android.os.Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        registerPlugin(VoiceRecorder.class);
+    }' $MAINACTIVITY || true
+          fi
 
-      - name: Build Release APK
+      - name: Inject Google Client IDs into Config
+        run: |
+          CONFIG="src/lib/app.config.json"
+          if [ -f "$CONFIG" ]; then
+            sed -i 's|"GOOGLE_CLIENT_ID_ANDROID": ".*"|"GOOGLE_CLIENT_ID_ANDROID": "${{ secrets.GOOGLE_CLIENT_ID_ANDROID }}"|' $CONFIG
+            sed -i 's|"GOOGLE_CLIENT_ID_WEB": ".*"|"GOOGLE_CLIENT_ID_WEB": "${{ secrets.GOOGLE_CLIENT_ID_WEB }}"|' $CONFIG
+          fi
+
+      - name: Build Pure Android APK Release
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cd android
           chmod +x gradlew
-         ./gradlew assembleRelease --info
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Upload APK
+      - name: Print Verification SHA-1 & Package Name
+        run: |
+          echo "=== VERIFYING SHA-1 ==="
+          keytool -list -v -keystore android/app/dardshati-release.keystore -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" -alias "${{ secrets.ANDROID_KEY_ALIAS }}" | grep "SHA1" || echo "Could not print SHA1"
+          echo "=== VERIFYING APPLICATION ID ==="
+          grep "applicationId" android/app/build.gradle || echo "Application ID location varies"
+
+      - name: Upload Native Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Dardshati-Release
+          name: Dardshati-Release-Strict-APK
           path: android/app/build/outputs/apk/release/app-release.apk
