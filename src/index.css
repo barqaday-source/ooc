@@ -202,4 +202,21 @@
     overscroll-behavior: none !important;
     touch-action: none !important;
   }
+
+  /* حل مشكلة تداخل الـ Bottom Nav مع أزرار أندرويد */
+  .bottom-nav-container {
+    padding-bottom: constant(safe-area-inset-bottom);
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc(60px + env(safe-area-inset-bottom));
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+  }
+
+  .bottom-nav-spacer {
+    height: calc(60px + env(safe-area-inset-bottom));
+    width: 100%;
+  }
     }
