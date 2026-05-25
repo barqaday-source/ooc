@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "159537926588",
+    "project_id": "my-chats-6313d",
+    "storage_bucket": "my-chats-6313d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:159537926588:android:a84f991e108f17b6b55bb9",
+        "android_client_info": {
+          "package_name": "com.drdshati.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4WapMcZyri_3TO2KxcwD1B_3USXBYinI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
