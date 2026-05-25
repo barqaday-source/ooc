@@ -1,8 +1,8 @@
-name: Build Android App
+name: Build Android App From Scratch
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main ] # أو اسم البرانش الخاص بك
 
 jobs:
   build:
@@ -11,10 +11,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+
+      - name: Install Global Dependencies
+        run: |
+          npm install -g @capacitor/cli
 
       - name: Install Dependencies
         run: |
@@ -24,15 +34,13 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
+      - name: Create Android Project
+        run: |
+          npx cap add android
+
       - name: Sync Capacitor
         run: |
           npx cap sync android
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
 
       - name: Build Android APK
         run: |
