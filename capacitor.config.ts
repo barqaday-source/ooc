@@ -6,12 +6,12 @@ const config: CapacitorConfig = {
   webDir: "dist",
   server: {
     androidScheme: "https",
-    cleartext: true
+    cleartext: true,
   },
   android: {
     allowMixedContent: true,
     captureInput: true,
-    webContentsDebuggingEnabled: false
+    webContentsDebuggingEnabled: false,
   },
   plugins: {
     GoogleAuth: {
@@ -23,13 +23,13 @@ const config: CapacitorConfig = {
     StatusBar: {
       style: "dark",
       backgroundColor: "#B6D6FF",
-      overlaysWebView: false
+      overlaysWebView: false,
     },
     Keyboard: {
       resize: "none",
-      resizeOnFullScreen: true
-    }
-  }
+      resizeOnFullScreen: true,
+    },
+  },
 };
 
 export default config;
