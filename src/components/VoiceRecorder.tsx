@@ -1,5 +1,5 @@
 // ====================================================================
-// VoiceRecorder - تسجيل رسالة صوتية بـ MediaRecorder API + AnalyserNode
+// VoiceRecorder - نسخة نهائية: mp4 + بدون AudioContext + معالجة أخطاء
 // ====================================================================
 
 import { useEffect, useRef, useState } from "react";
@@ -31,121 +31,133 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
   const pendingSendRef = useRef(false);
-
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const dataArrayRef = useRef<Uint8Array | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const fakeWaveRef = useRef<number | null>(null);
 
   const cleanupStream = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-    if (audioCtxRef.current?.state!== "closed") {
-      audioCtxRef.current?.close();
+    if (fakeWaveRef.current) {
+      cancelAnimationFrame(fakeWaveRef.current);
+      fakeWaveRef.current = null;
     }
-    audioCtxRef.current = null;
-    analyserRef.current = null;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
   };
 
-  useEffect(() => () => {
-    cleanupStream();
-    if (timerRef.current) window.clearInterval(timerRef.current);
+  useEffect(() => {
+    return () => {
+      cleanupStream();
+    };
   }, []);
 
-  // تحليل مستوى الصوت الحقيقي
-  const analyze = () => {
-    if (!analyserRef.current ||!dataArrayRef.current) return;
-
-    analyserRef.current.getByteFrequencyData(dataArrayRef.current);
-
-    const slice = Math.floor(dataArrayRef.current.length / BAR_COUNT);
-    const newLevels = Array.from({ length: BAR_COUNT }, (_, i) => {
-      let sum = 0;
-      for (let j = 0; j < slice; j++) {
-        sum += dataArrayRef.current![i * slice + j];
-      }
-      const avg = sum / slice / 255;
-      return Math.max(0.15, avg);
+  // موجات وهمية تتحرك وقت التسجيل فقط للشكل
+  const fakeAnalyze = () => {
+    const newLevels = Array.from({ length: BAR_COUNT }, () => {
+      return Math.random() * 0.8 + 0.2;
     });
-
     setLevels(newLevels);
-    rafRef.current = requestAnimationFrame(analyze);
+    fakeWaveRef.current = requestAnimationFrame(() => {
+      setTimeout(fakeAnalyze, 100);
+    });
   };
 
   const start = async () => {
     try {
-      // --- التحقق القسري من الإذن قبل أي شيء ---
+      // 1. التحقق من إذن Capacitor أولاً
       let status = await VoiceRecorder.hasAudioRecordingPermission();
-
       if (!status.value) {
         status = await VoiceRecorder.requestAudioRecordingPermission();
       }
-
       if (!status.value) {
-        alert("تم رفض إذن الميكروفون. يرجى تفعيله يدوياً من إعدادات الهاتف: الإعدادات > التطبيقات > تطبيقك > الأذونات > الميكروفون");
+        alert("تم رفض إذن الميكروفون. فعّله من: الإعدادات > التطبيقات > تطبيقك > الأذونات > الميكروفون");
         return;
       }
-      // -----------------------------------------
 
-      // 2. بعد الإذن، نشغل getUserMedia عادي
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // 2. نشغل getUserMedia مباشرة - بدون AudioContext
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100
+        }
+      });
       streamRef.current = stream;
 
-      const preferred = [
-        "audio/webm;codecs=opus",
-        "audio/ogg;codecs=opus",
+      // 3. ترتيب الأولويات لأندرويد: mp4 أولاً
+      const preferredMimeTypes = [
         "audio/mp4",
-        "audio/webm"
+        "audio/aac",
+        "audio/mpeg",
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus"
       ];
-      const mime = preferred.find((m) => MediaRecorder.isTypeSupported(m)) || "";
-      const mr = new MediaRecorder(stream, {
-        mimeType: mime,
-        audioBitsPerSecond: 128000
-      });
+
+      let selectedMime = "";
+      for (const mime of preferredMimeTypes) {
+        if (MediaRecorder.isTypeSupported(mime)) {
+          selectedMime = mime;
+          console.log("Selected MIME:", selectedMime);
+          break;
+        }
+      }
+
+      const options: MediaRecorderOptions = selectedMime
+       ? { mimeType: selectedMime, audioBitsPerSecond: 128000 }
+        : { audioBitsPerSecond: 128000 };
+
+      const mr = new MediaRecorder(stream, options);
       mediaRef.current = mr;
       chunksRef.current = [];
 
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
 
-      audioCtxRef.current = audioCtx;
-      analyserRef.current = analyser;
-      dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
-
-      analyze();
-
-      mr.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
       mr.onstop = () => {
-        const b = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
+        const finalMime = mr.mimeType || "audio/mp4";
+        const b = new Blob(chunksRef.current, { type: finalMime });
+        console.log("Final Blob MIME:", finalMime, "Size:", b.size);
         setBlob(b);
         cleanupStream();
+        setLevels(Array(BAR_COUNT).fill(0.2));
+
         if (pendingSendRef.current) {
           pendingSendRef.current = false;
           void sendBlob(b);
         }
       };
 
-      mr.start();
+      mr.onerror = (e) => {
+        console.error("MediaRecorder error:", e);
+        alert("حدث خطأ أثناء التسجيل");
+        cancel();
+      };
+
+      mr.start(250);
       setRecording(true);
       setSeconds(0);
       setBlob(null);
+      fakeAnalyze();
       timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
+
     } catch (e) {
       console.error("خطأ فادح في بدء التسجيل:", e);
-      alert("فشل الوصول للميكروفون. تأكد من تثبيت إضافة capacitor-voice-recorder وتشغيل npx cap sync android");
+      alert("فشل الوصول للميكروفون. تأكد من تشغيل npx cap sync android");
+      cleanupStream();
     }
   };
 
   const cancel = () => {
-    if (recording) {
-      mediaRef.current?.stop();
-      setRecording(false);
+    if (recording && mediaRef.current?.state === "recording") {
+      mediaRef.current.stop();
     }
-    if (timerRef.current) window.clearInterval(timerRef.current);
+    setRecording(false);
     setBlob(null);
     setSeconds(0);
     setLevels(Array(BAR_COUNT).fill(0.2));
@@ -153,12 +165,20 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
   };
 
   const sendBlob = async (b: Blob) => {
+    if (b.size === 0) {
+      alert("التسجيل فارغ. حاول مرة أخرى");
+      return;
+    }
+
     setSending(true);
     try {
       await onSend(b, seconds);
       setBlob(null);
       setSeconds(0);
       setLevels(Array(BAR_COUNT).fill(0.2));
+    } catch (e) {
+      console.error("فشل الإرسال:", e);
+      alert("فشل إرسال التسجيل");
     } finally {
       setSending(false);
     }
@@ -166,17 +186,16 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
 
   const stopAndSend = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (recording) {
+    if (recording && mediaRef.current?.state === "recording") {
       pendingSendRef.current = true;
-      mediaRef.current?.stop();
+      mediaRef.current.stop();
       setRecording(false);
-      if (timerRef.current) window.clearInterval(timerRef.current);
-      return;
+    } else if (blob) {
+      void sendBlob(blob);
     }
-    if (blob) void sendBlob(blob);
   };
 
-  // الحالة 1: زر مايكروفون فقط - يختفي زر الإرسال
+  // الحالة 1: زر مايكروفون فقط
   if (!recording &&!blob) {
     return (
       <button
@@ -194,14 +213,12 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
     );
   }
 
-  // الحالة 2: كرت التسجيل - شكل كبسولة انستغرام
+  // الحالة 2: كرت التسجيل
   return (
     <div
       onClick={(e) => e.stopPropagation()}
       className="absolute bottom-0 left-1/2 -translate-x-1/2 z-20 flex items-center w-[96%] h-[50px] my-[5px] px-[15px] bg-[#fff1f1] border border-[#ffcccc] rounded-[30px] shadow-[0_2px_8px_rgba(255,204,204,0.3)]"
-      style={{ alignItems: 'center' }}
     >
-      {/* زر الإرسال - يسار تماماً */}
       <button
         type="button"
         onClick={stopAndSend}
@@ -212,12 +229,10 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
         {sending? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
       </button>
 
-      {/* التايمر */}
       <span className="text-xs font-bold font-mono text-red-600 tabular-nums shrink-0 w-10 text-center">
         {fmt(seconds)}
       </span>
 
-      {/* موجات الصوت - تاخذ كل المساحة المتبقية flex-1 */}
       <div className="flex items-center gap-[1.5px] flex-1 h-6 overflow-hidden px-1">
         {levels.map((level, i) => (
           <span
@@ -231,15 +246,15 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
         ))}
       </div>
 
-      {/* زر الحذف - يمين تماماً */}
       <button
         type="button"
         onClick={cancel}
-        className="w-8 h-8 rounded-full border border-red-300/60 hover:bg-red-50 flex items-center justify-center transition-all shrink-0"
+        disabled={sending}
+        className="w-8 h-8 rounded-full border border-red-300/60 hover:bg-red-50 flex items-center justify-center transition-all shrink-0 disabled:opacity-60"
         aria-label="حذف التسجيل"
       >
         <Trash2 className="w-3.5 h-3.5 text-red-500/90" />
       </button>
     </div>
   );
-          }
+            }
