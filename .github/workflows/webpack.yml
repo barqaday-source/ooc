@@ -18,32 +18,54 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '21' }
 
-      - name: Install & Sync Project
+      - name: Install & Initialize
         run: |
           npm install --legacy-peer-deps
           npm run build
-          # مسح المجلد السابق لضمان بناء نظيف
           rm -rf android
           npx cap add android
           npx cap sync android
 
-      - name: Prepare Configs & Inject Permissions
+      - name: Setup Configs & Permissions
         run: |
-          # 1. التحقق من وجود ملف جوجل الذي رفعته أنت للمستودع
-          if [ ! -f "android/app/google-services.json" ]; then
-            echo "خطأ: الملف google-services.json غير موجود في المسار الصحيح!"
-            exit 1
-          fi
-          
-          # 2. حقن صلاحيات المايكروفون (RECORD_AUDIO & MODIFY_AUDIO_SETTINGS)
+          # 1. إنشاء ملف جوجل يدوياً لضمان وجوده في المسار الصحيح
+          mkdir -p android/app/
+          cat << 'EOF' > android/app/google-services.json
+{
+  "project_info": {
+    "project_number": "159537926588",
+    "project_id": "my-chats-6313d",
+    "storage_bucket": "my-chats-6313d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:159537926588:android:a84f991e108f17b6b55bb9",
+        "android_client_info": {
+          "package_name": "com.drdshati.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4WapMcZyri_3TO2KxcwD1B_3USXBYinI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+EOF
+          # 2. حقن صلاحيات المايكروفون
           sed -i '/<uses-permission android:name="android.permission.INTERNET"/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' android/app/src/main/AndroidManifest.xml
           
-          # 3. ضبط الكيبورد ليكون ثابت (لا يرفع الواجهة)
+          # 3. ضبط الكيبورد
           sed -i 's/android:windowSoftInputMode="adjustNothing"/android:windowSoftInputMode="adjustPan"/' android/app/src/main/AndroidManifest.xml
-
-          # 4. إضافة أداة تتبع أخطاء التسجيل (Debug Auth)
-          # هذا الكود سيطبع رسالة في Logcat عند تشغيل التطبيق للتأكد من ربط خدمات جوجل
-          sed -i '/public class MainActivity/a \    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n        android.util.Log.e("DEBUG_AUTH_CHECK", "تم تحميل خدمات جوجل بنجاح بواسطة كود البناء");\n    }' android/app/src/main/java/com/drdshati/app/MainActivity.java
 
       - name: Execute Build
         run: |
@@ -54,5 +76,5 @@ jobs:
       - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: Drdshati-Final-Signed-APK
+          name: Drdshati-Final-APK
           path: android/app/build/outputs/apk/release/app-release-unsigned.apk
