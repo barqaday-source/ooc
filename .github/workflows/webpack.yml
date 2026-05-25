@@ -1,4 +1,4 @@
-name: Full Android APK Build
+name: Full Android Build with Auth Debugging
 
 on:
   push:
@@ -9,46 +9,50 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js & Java
+      - name: Setup Environment
         uses: actions/setup-node@v4
         with: { node-version: '22' }
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '21' }
 
-      - name: Install Dependencies & Build Web
+      - name: Install & Sync
         run: |
           npm install --legacy-peer-deps
           npm run build
-
-      - name: Initialize Android Project
-        run: |
-          # إضافة الأندرويد من الصفر
+          rm -rf android
           npx cap add android
           npx cap sync android
 
-      - name: Inject Google Config & Permissions
+      - name: Inject Google Config & Debug Tools
         run: |
-          # 1. حقن ملف جوجل (بأمان)
+          # 1. حقن ملف جوجل الآمن
           printf '%s' "${{ secrets.GOOGLE_SERVICES_JSON }}" > android/app/google-services.json
           
-          # 2. حقن صلاحيات المايكروفون (RECORD_AUDIO & MODIFY_AUDIO_SETTINGS)
-          # نستخدم sed للبحث عن سطر الإنترنت وإضافة صلاحيات المايك بعده
+          # 2. فحص وجود الملف (تقرير للخطأ في حال فشل الربط)
+          if [ ! -s android/app/google-services.json ]; then
+            echo "ERROR: google-services.json is empty or missing!"
+            exit 1
+          fi
+
+          # 3. حقن كود تتبع أخطاء التسجيل (Google Auth Debugger)
+          # هذا يجعل التطبيق يطبع أي خطأ يواجهه عند محاولة تسجيل الدخول
+          sed -i '/public class MainActivity/a \    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n        android.util.Log.e("DEBUG_AUTH_CHECK", "Google Services Loaded: " + (new java.io.File("google-services.json").exists()));\n    }' android/app/src/main/java/com/drdshati/app/MainActivity.java
+
+          # 4. التصاريح الصارمة
           sed -i '/<uses-permission android:name="android.permission.INTERNET"/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' android/app/src/main/AndroidManifest.xml
-          
-          # 3. ضبط الكيبورد ليكون ثابت (لا يرفع الواجهة)
           sed -i 's/android:windowSoftInputMode="adjustNothing"/android:windowSoftInputMode="adjustPan"/' android/app/src/main/AndroidManifest.xml
 
-      - name: Build Final APK
+      - name: Final Build
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Final-Drdshati-APK
+          name: Drdshati-Full-Build
           path: android/app/build/outputs/apk/release/app-release-unsigned.apk
