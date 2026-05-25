@@ -3,9 +3,9 @@ include ':capacitor-cordova-android-plugins'
 project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
 
 apply from: 'capacitor.settings.gradle'
-include ':capacitor-google-auth'
 
-project(':capacitor-google-auth').projectDir = new File(rootProject.projectDir, '../node_modules/@codetrix-studio/capacitor-google-auth/android')
-
+// احتفظ فقط بتعريف المكاتب التي تسبب مشاكل (التي لا يجدها Gradle تلقائياً)
 include ':capacitor-voice-recorder'
 project(':capacitor-voice-recorder').projectDir = new File(rootProject.projectDir, '../node_modules/capacitor-voice-recorder/android')
+
+// احذف التعريف اليدوي لـ google-auth من هنا، واترك Capacitor يقوم بمهمته
