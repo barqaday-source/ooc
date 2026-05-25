@@ -30,11 +30,17 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      # 2. خطوة التحديث والمزامنة (معدلة لضمان تثبيت الإضافات)
       - name: Sync Capacitor
         run: |
-          npx cap update android
+          # 1. تثبيت الإضافات
+          npm install
+          # 2. التأكد من أن Capacitor يعرف أن هناك مجلد أندرويد
+          # بدلاً من البحث التلقائي، سنفرض عليه المسار
+          npx cap add android || echo "Android exists"
+          # 3. مزامنة الملفات (هذا هو الأهم)
+          npx cap copy android
           npx cap sync android
+
 
       # 3. خطوة البناء النظيف
       - name: Build APK
@@ -50,3 +56,5 @@ jobs:
         with:
           name: app-debug
           path: android/app/build/outputs/apk/debug/*.apk
+
+
