@@ -1,4 +1,4 @@
-name: Final Android Build - Drdshati
+name: Final Android Native Build
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '21' }
 
-      - name: Install & Initialize
+      - name: Build Web & Create Native Android
         run: |
           npm install --legacy-peer-deps
           npm run build
@@ -26,28 +26,35 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Setup Configs & Permissions
+      - name: Inject Permissions & Config
         run: |
-          # 1. إنشاء المجلد
+          # 1. إنشاء ملف جوجل (ضروري لعمل المكتبات)
           mkdir -p android/app/
-          
-          # 2. إنشاء ملف جوجل (كود مضغوط لتجنب خطأ الـ Syntax)
           printf '{"project_info":{"project_number":"159537926588","project_id":"my-chats-6313d","storage_bucket":"my-chats-6313d.firebasestorage.app"},"client":[{"client_info":{"mobilesdk_app_id":"1:159537926588:android:a84f991e108f17b6b55bb9","android_client_info":{"package_name":"com.drdshati.app"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyB4WapMcZyri_3TO2KxcwD1B_3USXBYinI"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > android/app/google-services.json
-          
-          # 3. حقن صلاحيات المايكروفون
+
+          # 2. أذونات المايكروفون (الأولوية القصوى)
+          # نقوم بالبحث عن سطر الإنترنت وإضافة أذونات المايك بعده مباشرة
           sed -i '/<uses-permission android:name="android.permission.INTERNET"/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' android/app/src/main/AndroidManifest.xml
           
-          # 4. ضبط الكيبورد
+          # 3. إعدادات الموبايل (AdjustPan يمنع تحرك الواجهة عند فتح الكيبورد)
           sed -i 's/android:windowSoftInputMode="adjustNothing"/android:windowSoftInputMode="adjustPan"/' android/app/src/main/AndroidManifest.xml
 
-      - name: Execute Build
+      - name: Build, Sign, and Export
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          # بناء التطبيق
+          ./gradlew assembleRelease
+          
+          # إنشاء مفتاح توقيع ليكون التطبيق صالحاً للتثبيت
+          keytool -genkey -v -keystore drdshati.keystore -alias drdshati -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Drdshati, O=App, C=US"
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore drdshati.keystore -storepass 123456 app/build/outputs/apk/release/app-release-unsigned.apk drdshati
+          
+          # استخراج الملف الناتج
+          mv app/build/outputs/apk/release/app-release-unsigned.apk ../Drdshati-Native-App.apk
 
-      - name: Upload Final APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Drdshati-Final-APK
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          name: Drdshati-Native-App
+          path: Drdshati-Native-App.apk
