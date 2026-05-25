@@ -8,11 +8,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # استبدال آمن للحزمة
-      - name: Safe Rename Package
-        run: |
-          find . -type f \( -name "*.java" -o -name "*.xml" -o -name "*.gradle" \) -exec sed -i 's/com.joud.chat/com.drdshati.app/g' {} +
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -32,6 +27,7 @@ jobs:
 
       - name: Sync Capacitor
         run: |
+          # نستخدم CONFIG ثابت لضمان عدم تغيير الملفات الحساسة
           npx cap add android || echo "Android exists"
           npx cap copy android
           npx cap update android
@@ -40,10 +36,10 @@ jobs:
       - name: Build and Sign APK
         run: |
           cd android
-          # إنشاء المفتاح (إذا لم يكن موجوداً)
-          keytool -genkey -v -keystore my-release-key.keystore -alias dardshati -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Dardshati, OU=App, O=Dardshati, L=Basra, ST=Basra, C=IQ"
+          # استخدام نفس مفتاحنا السابق الثابت
+          keytool -genkey -v -keystore my-release-key.keystore -alias dardshati -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Dardshati, OU=App, O=Dardshati, L=Basra, ST=Basra, C=IQ" || true
           
-          # البناء والتوقيع باستخدام المفتاح الثابت
+          # البناء
           rm -rf app/build .gradle
           chmod +x gradlew
           ./gradlew assembleDebug -Pandroid.injected.signing.store.file=my-release-key.keystore -Pandroid.injected.signing.store.password=123456 -Pandroid.injected.signing.key.alias=dardshati -Pandroid.injected.signing.key.password=123456
