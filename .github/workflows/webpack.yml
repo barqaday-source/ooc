@@ -30,12 +30,14 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-
+          
       - name: Build and Sign APK
         run: |
+          # نستخدم المسار الكامل للملف لضمان عدم ضياعه
+          KEYSTORE_PATH=$(pwd)/android/app/my-release-key.keystore
           cd android
           ./gradlew clean assembleRelease \
-          -Pandroid.injected.signing.store.file=my-release-key.keystore \
+          -Pandroid.injected.signing.store.file=$KEYSTORE_PATH \
           -Pandroid.injected.signing.store.password=123456 \
           -Pandroid.injected.signing.key.alias=dardshati \
           -Pandroid.injected.signing.key.password=123456
