@@ -1,4 +1,4 @@
-name: Build Native Android APK
+name: Strict Build Release APK
 
 on:
   push:
@@ -6,94 +6,45 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-sign:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: actions/setup-java@v4
+        with: { distribution: 'temurin', java-version: '21' }
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install All Dependencies
+      - name: Build Web & Sync
         run: |
-          npm cache clean --force
           npm install --legacy-peer-deps
-
-      - name: Inject Firebase Config
-        run: |
-          cat > android/app/google-services.json << 'EOF'
-          ${{ secrets.GOOGLE_SERVICES_JSON }}
-          EOF
-
-      - name: Inject Google Client IDs
-        run: |
-          CONFIG="src/lib/app.config.json"
-          if [ -f "$CONFIG" ]; then
-            sed -i 's|"GOOGLE_CLIENT_ID_ANDROID": ".*"|"GOOGLE_CLIENT_ID_ANDROID": "${{ secrets.GOOGLE_CLIENT_ID_ANDROID }}"|' $CONFIG
-            sed -i 's|"GOOGLE_CLIENT_ID_WEB": ".*"|"GOOGLE_CLIENT_ID_WEB": "${{ secrets.GOOGLE_CLIENT_ID_WEB }}"|' $CONFIG
-          fi
-
-      - name: Build Web Assets
-        run: npm run build
-
-      - name: Build Native Android Project Safely
-        run: |
-          rm -rf android
-          npx cap add android
+          npm run build
           npx cap sync android
 
-      - name: Inject Firebase Config
+      - name: Create Secrets (Securely)
         run: |
+          # إنشاء ملف التوقيع
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/dardshati-release.keystore
+          
+          # إنشاء ملف الخصائص
+          cat > android/app/signing.properties <<EOF
+          storeFile=dardshati-release.keystore
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+          
+          # وضع ملف جوجل الموثوق
           echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
 
-      - name: Inject Microphone Permissions
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<uses-permission android:name="android.permission.INTERNET"/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST
-
-      - name: Build Pure Unsigned Release APK
+      - name: Strict Gradle Build
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --no-daemon
 
-      - name: Prepare Fixed Keystore
-        run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
-
-      - name: Sign APK with Apksigner (Bulletproof Method)
-        env:
-          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
-          ALIGNED_APK="app-release-aligned.apk"
-          FINAL_APK="Dardshati-Release.apk"
-          
-          # تثبيت أدوات جوجل الرسمية للتوقيع
-          sudo apt-get install -y zipalign apksigner
-          
-          # محاذاة الملف (ضروري لمتجر بلاي)
-          zipalign -v -p 4 "$APK_PATH" "$ALIGNED_APK"
-          
-          # توقيع التطبيق بالمفتاح الخاص بك
-          apksigner sign --ks release.keystore --ks-pass "env:KEYSTORE_PASS" --key-pass "env:KEY_PASS" --ks-key-alias "$KEY_ALIAS" --out "$FINAL_APK" "$ALIGNED_APK"
-
-      - name: Upload Final Ready-to-Publish APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Dardshati-Signed-Release
-          path: Dardshati-Release.apk
+          name: Dardshati-Final-APK
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
