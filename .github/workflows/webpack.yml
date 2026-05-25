@@ -19,13 +19,6 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Clean & Prepare Environment
-        run: |
-          # مسح شامل لأي كاش سابق
-          rm -rf node_modules
-          rm -rf android/.gradle
-          rm -rf android/app/build
-          
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
@@ -34,7 +27,6 @@ jobs:
 
       - name: Sync Capacitor
         run: |
-          # حذف مجلد الأندرويد القديم بالكامل وإعادة إنشائه لضمان عدم وجود ملفات قديمة
           rm -rf android
           npx cap add android
           npx cap copy android
@@ -44,8 +36,18 @@ jobs:
       - name: Build and Sign APK
         run: |
           cd android
-          # التوقيع الثابت (بدون تغيير أي ملفات إعدادات)
-          ./gradlew assembleDebug -Pandroid.injected.signing.store.file=my-release-key.keystore -Pandroid.injected.signing.store.password=123456 -Pandroid.injected.signing.key.alias=dardshati -Pandroid.injected.signing.key.password=123456
+          # 1. إنشاء المفتاح مباشرة داخل مجلد android
+          keytool -genkey -v -keystore my-release-key.keystore -alias dardshati -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Dardshati, OU=App, O=Dardshati, L=Basra, ST=Basra, C=IQ" -noprompt || true
+          
+          # 2. تحديد المسار الكامل للمفتاح لضمان العثور عليه
+          KEYSTORE_PATH=$(pwd)/my-release-key.keystore
+          
+          # 3. البناء مع تمرير المسار الكامل
+          ./gradlew clean assembleDebug \
+          -Pandroid.injected.signing.store.file=$KEYSTORE_PATH \
+          -Pandroid.injected.signing.store.password=123456 \
+          -Pandroid.injected.signing.key.alias=dardshati \
+          -Pandroid.injected.signing.key.password=123456
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
