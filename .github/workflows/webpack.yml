@@ -8,6 +8,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Search for Old Package Name
+        run: |
+          echo "جاري البحث عن الاسم القديم في كل ملفات المشروع..."
+          grep -rn "com.joud.chat" . || echo "لم يتم العثور على الاسم القديم!"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
