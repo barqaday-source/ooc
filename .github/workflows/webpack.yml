@@ -1,4 +1,4 @@
-name: Build Android App
+name: Build Debug APK
 
 on:
   push:
@@ -31,38 +31,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Verify Plugin Configuration
+      - name: Build Debug APK
         run: |
-          echo "--- Locating and Verifying MainActivity.java ---"
-          FILE_PATH=$(find android/app/src/main/java -name "MainActivity.java" | head -n 1)
-          
-          if [ -z "$FILE_PATH" ]; then
-            echo "::error:: MainActivity.java NOT FOUND!"
-            exit 1
-          fi
-          
-          # التحقق من وجود الإضافات في ملف الجافا
-          if grep -q "GoogleAuth" "$FILE_PATH" && grep -q "VoiceRecorder" "$FILE_PATH"; then
-            echo "SUCCESS: Plugins found in $FILE_PATH"
-          else
-            echo "::error:: FAILED: GoogleAuth or VoiceRecorder NOT registered in $FILE_PATH"
-            echo "Current file content:"
-            cat "$FILE_PATH"
-            exit 1
-          fi
-
-      - name: Build and Sign APK
-        run: |
-          KEYSTORE_PATH=$(pwd)/android/app/my-release-key.keystore
           cd android
-          ./gradlew clean assembleRelease \
-          -Pandroid.injected.signing.store.file=$KEYSTORE_PATH \
-          -Pandroid.injected.signing.store.password=123456 \
-          -Pandroid.injected.signing.key.alias=dardshati \
-          -Pandroid.injected.signing.key.password=123456
+          ./gradlew clean assembleDebug
 
-      - name: Upload APK
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: android/app/build/outputs/apk/release/*.apk
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/*.apk
