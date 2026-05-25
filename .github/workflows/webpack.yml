@@ -30,7 +30,12 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          
+
+      - name: Debug Manifest
+        run: |
+          echo "--- Checking AndroidManifest.xml ---"
+          cat android/app/src/main/AndroidManifest.xml
+
       - name: Build and Sign APK
         run: |
           # نستخدم المسار الكامل للملف لضمان عدم ضياعه
