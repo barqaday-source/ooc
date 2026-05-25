@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">دردشة</string>
+    <string name="title_activity_main">دردشة</string>
+    <string name="package_name">com.joud.chat</string>
+    <string name="custom_url_scheme">com.joud.chat</string>
+</resources>
