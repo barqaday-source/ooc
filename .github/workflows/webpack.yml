@@ -1,103 +1,47 @@
-name: Final Android Native Build
+name: Build Android App
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ main ] # أو اسم البرانش الخاص بك
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Setup Environment
-        uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: '22'
-          cache: 'npm'
-          
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+          node-version: '18'
 
-      - name: Install Dependencies & Verify Build
+      - name: Install Dependencies
         run: |
-          # 1. تثبيت الحزم بشكل صارم وضمان نجاحه
-          npm set progress=false
-          npm install --legacy-peer-deps || npm install --frozen-lockfile
-          
-          # 2. تشغيل أمر بناء مشروع الويب (ستتوقف الأتمتة هنا فوراً لو حدث خطأ)
-          echo "جاري بناء ملفات الويب الحقيقية..."
-          npm run build --if-present
-          
-          # 3. فحص ذكي وصارم للمجلد الحقيقي الذي يحتوي على ملف index.html
-          if [ -f "dist/index.html" ]; then WEB_DIR="dist";
-          elif [ -f "build/index.html" ]; then WEB_DIR="build";
-          elif [ -f "www/index.html" ]; then WEB_DIR="www";
-          else 
-            echo "❌ خطأ كارثي: لم يتم العثور على ملف index.html في أي مجلد! تأكد من أن ملفات تطبيقك يتم بناؤها بنجاح محلياً."
-            ls -la # طباعة الملفات الحالية في السجل لمعرفة الخلل
-            exit 1
-          fi
-          
-          echo "✅ تم العثور على ملفات التطبيق الحقيقية في مجلد: $WEB_DIR"
-          
-          # 4. تحديث ملف الإعدادات لـ Capacitor ليقرأ من المجلد الصحيح
-          npx node -e "
-            const fs = require('fs');
-            if (fs.existsSync('capacitor.config.json')) {
-              const config = JSON.parse(fs.readFileSync('capacitor.config.json', 'utf8'));
-              config.webDir = '$WEB_DIR';
-              fs.writeFileSync('capacitor.config.json', JSON.stringify(config, null, 2));
-              console.size = 'تعديل الإعدادات بنجاح.';
-            } else {
-              console.log('ملف الإعدادات غير موجود، سيتم إنشاؤه افتراضياً');
-              fs.writeFileSync('capacitor.config.json', JSON.stringify({ appId: 'com.drdshati.app', appName: 'Drdshati', webDir: '$WEB_DIR' }));
-            }
-          "
+          npm install
+          # تثبيت المكتبة التي كانت تسبب خطأ البناء
+          npm install capacitor-voice-recorder
 
-      - name: Sync Capacitor Android
+      - name: Build Web Assets
+        run: npm run build
+
+      - name: Sync Capacitor
         run: |
-          # حذف أي بقايا قديمة والمزامنة النظيفة للملفات الحقيقية
-          rm -rf android
-          npx cap add android
           npx cap sync android
 
-      - name: Setup Configs & Permissions
-        run: |
-          # 1. إضافة ملف خدمات جوجل
-          mkdir -p android/app/
-          printf '{"project_info":{"project_number":"159537926588","project_id":"my-chats-6313d","storage_bucket":"my-chats-6313d.firebasestorage.app"},"client":[{"client_info":{"mobilesdk_app_id":"1:159537926588:android:a84f991e108f17b6b55bb9","android_client_info":{"package_name":"com.drdshati.app"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyB4WapMcZyri_3TO2KxcwD1B_3USXBYinI"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > android/app/google-services.json
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-          # 2. تعديل الصلاحيات بأمان دون تدمير البنية
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST
-          sed -i 's/android:windowSoftInputMode="adjustNothing"/android:windowSoftInputMode="adjustPan"/' $MANIFEST
-
-      - name: Build and Sign APK
+      - name: Build Android APK
         run: |
           cd android
-          chmod +x gradlew
+          ./gradlew assembleDebug
           
-          # بناء ملف APK للإنتاج
-          ./gradlew assembleRelease
-          
-          # إنشاء مفتاح التوقيع
-          keytool -genkey -v -keystore drdshati.keystore -alias drdshati -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Drdshati, O=App, C=US"
-          
-          # توقيع الملف الناتج أوتوماتيكياً
-          APK_PATH=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
-          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore drdshati.keystore -storepass 123456 $APK_PATH drdshati
-          
-          # إخراج الملف النهائي للمجلد الرئيسي
-          mv $APK_PATH ../Drdshati-Native-App.apk
-
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
-          name: Drdshati-Native-App
-          path: Drdshati-Native-App.apk
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
