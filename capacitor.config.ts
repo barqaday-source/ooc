@@ -9,15 +9,17 @@ const config: CapacitorConfig = {
     cleartext: true,
   },
   android: {
-    backgroundColor: "#B6D6FF",
+    backgroundColor: "#FFFFFF",
     allowMixedContent: true,
     captureInput: true,
     webContentsDebuggingEnabled: false,
+    // هذا يمنع التمطط مع الكيبورد
+    mixedContentMode: "always_allow"
   },
   ios: {
-    backgroundColor: "#B6D6FF",
+    backgroundColor: "#FFFFFF",
     contentInset: "always",
-    scrollEnabled: false,
+    scrollEnabled: true, // غيرتها لـ true عشان السكرول يضبط
     limitsNavigationsToAppBoundDomains: true
   },
   plugins: {
@@ -32,19 +34,19 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       style: "dark",
-      backgroundColor: "#B6D6FF",
+      backgroundColor: "#FFFFFF",
       overlaysWebView: false,
       androidOverlaysWebView: false
     },
     Keyboard: {
-      resize: "body",
+      resize: "none", // أهم سطر: يمنع التمطط نهائياً
       style: "dark",
       resizeOnFullScreen: true,
     },
     SplashScreen: {
       launchShowDuration: 0,
       launchAutoHide: true,
-      backgroundColor: "#B6D6FF",
+      backgroundColor: "#FFFFFF",
       androidSplashResourceName: "splash",
       androidScaleType: "CENTER_CROP",
       showSpinner: false,
