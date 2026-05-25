@@ -1,4 +1,4 @@
-package com.yourpackage; // تأكد من مطابقة اسم الحزمة الموجود في build.gradle
+package com.drdshati.app;// تأكد من مطابقة اسم الحزمة الموجود في build.gradle
 
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
