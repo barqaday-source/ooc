@@ -13,12 +13,19 @@ const config: CapacitorConfig = {
     captureInput: true,
     webContentsDebuggingEnabled: false
   },
-  plugins: {
-    GoogleAuth: {
-      scopes: ["profile", "email"],
-      androidClientId: "62134907551-t9cac5jbefl8o6pl1epbae1p8dscipj8.apps.googleusercontent.com",
-      serverClientId: "62134907551-t9cac5jbefl8o6pl1epbae1p8dscipj8.apps.googleusercontent.com",
-      forceCodeForRefreshToken: true,
+      plugins: {
+        GoogleAuth: {
+            scopes: ["profile", "email"],
+            // ضع الـ ID الجديد هنا
+            androidClientId: "159537926588-dtnce28t16apvq1calgdvjj1u1t95iq3.apps.googleusercontent.com",
+            // في العادة الـ serverClientId يكون مختلفاً (يسمى Web Client ID في Google Cloud)
+            // إذا لم يكن لديك واحد آخر، جرب استخدام نفس الـ ID، لكن الأفضل استخراج Web Client ID من Google Cloud Console
+            serverClientId: "159537926588-dtnce28t16apvq1calgdvjj1u1t95iq3.apps.googleusercontent.com",
+            forceCodeForRefreshToken: true,
+        },
+        // ... باقي الإضافات
+    },
+
     },
     StatusBar: {
       style: "dark",
