@@ -31,25 +31,28 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Debug Manifest
-        run: |
-          echo "--- Checking AndroidManifest.xml ---"
-          cat android/app/src/main/AndroidManifest.xml
-
       - name: Verify Plugin Configuration
         run: |
-          echo "--- Verifying Plugin Registration in MainActivity.java ---"
-          # البحث عن GoogleAuth و VoiceRecorder في ملف MainActivity
-          if grep -q "GoogleAuth" android/app/src/main/java/*/MainActivity.java && grep -q "VoiceRecorder" android/app/src/main/java/*/MainActivity.java; then
-            echo "All plugins found!"
+          echo "--- Locating and Verifying MainActivity.java ---"
+          FILE_PATH=$(find android/app/src/main/java -name "MainActivity.java" | head -n 1)
+          
+          if [ -z "$FILE_PATH" ]; then
+            echo "::error:: MainActivity.java NOT FOUND!"
+            exit 1
+          fi
+          
+          # التحقق من وجود الإضافات في ملف الجافا
+          if grep -q "GoogleAuth" "$FILE_PATH" && grep -q "VoiceRecorder" "$FILE_PATH"; then
+            echo "SUCCESS: Plugins found in $FILE_PATH"
           else
-            echo "::error:: Missing Plugin Configuration! Ensure GoogleAuth and VoiceRecorder are registered in MainActivity.java"
+            echo "::error:: FAILED: GoogleAuth or VoiceRecorder NOT registered in $FILE_PATH"
+            echo "Current file content:"
+            cat "$FILE_PATH"
             exit 1
           fi
 
       - name: Build and Sign APK
         run: |
-          # نستخدم المسار الكامل للملف لضمان عدم ضياعه
           KEYSTORE_PATH=$(pwd)/android/app/my-release-key.keystore
           cd android
           ./gradlew clean assembleRelease \
