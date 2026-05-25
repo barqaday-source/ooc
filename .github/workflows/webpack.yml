@@ -30,17 +30,19 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
+      # 2. خطوة التحديث والمزامنة مع تجاوز التعارض
       - name: Sync Capacitor
         run: |
-          # 1. تثبيت الإضافات
-          npm install
-          # 2. التأكد من أن Capacitor يعرف أن هناك مجلد أندرويد
-          # بدلاً من البحث التلقائي، سنفرض عليه المسار
-          npx cap add android || echo "Android exists"
-          # 3. مزامنة الملفات (هذا هو الأهم)
+          # تثبيت الإضافات مع تجاوز قيود الإصدارات
+          npm install --legacy-peer-deps
+          
+          # إنشاء مشروع الأندرويد إذا كان مفقوداً
+          npx cap add android || echo "Android project already exists"
+          
+          # تحديث ومزامنة الملفات
+          npx cap update android
           npx cap copy android
           npx cap sync android
-
 
       # 3. خطوة البناء النظيف
       - name: Build APK
@@ -56,5 +58,3 @@ jobs:
         with:
           name: app-debug
           path: android/app/build/outputs/apk/debug/*.apk
-
-
