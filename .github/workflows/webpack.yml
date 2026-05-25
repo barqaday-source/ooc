@@ -8,10 +8,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Search for Old Package Name
+      # خطوة التنظيف العميق: البحث والاستبدال في كل الملفات
+      - name: Deep Clean & Force Rename
         run: |
-          echo "جاري البحث عن الاسم القديم في كل ملفات المشروع..."
-          grep -rn "com.joud.chat" . || echo "لم يتم العثور على الاسم القديم!"
+          echo "جاري البحث واستبدال الاسم القديم في كل المشروع..."
+          find . -type f -exec sed -i 's/com.joud.chat/com.drdshati.app/g' {} +
+          echo "تم استبدال كل أثر لـ com.joud.chat بـ com.drdshati.app"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -33,9 +35,12 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      # خطوة بناء نظيفة جداً
       - name: Build APK
         run: |
           cd android
+          # إزالة أي مجلد build أو cache قديم قبل البناء
+          rm -rf app/build .gradle
           chmod +x gradlew
           ./gradlew clean assembleDebug
 
