@@ -13,13 +13,12 @@ const config: CapacitorConfig = {
     allowMixedContent: true,
     captureInput: true,
     webContentsDebuggingEnabled: false,
-    // هذا يمنع التمطط مع الكيبورد
     mixedContentMode: "always_allow"
   },
   ios: {
     backgroundColor: "#FFFFFF",
     contentInset: "always",
-    scrollEnabled: true, // غيرتها لـ true عشان السكرول يضبط
+    scrollEnabled: true,
     limitsNavigationsToAppBoundDomains: true
   },
   plugins: {
@@ -39,7 +38,7 @@ const config: CapacitorConfig = {
       androidOverlaysWebView: false
     },
     Keyboard: {
-      resize: "none", // أهم سطر: يمنع التمطط نهائياً
+      resize: "none",
       style: "dark",
       resizeOnFullScreen: true,
     },
