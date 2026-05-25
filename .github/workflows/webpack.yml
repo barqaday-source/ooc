@@ -12,34 +12,42 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node & Java
+      - name: Setup Environment
         uses: actions/setup-node@v4
         with: { node-version: '22' }
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '21' }
 
-      - name: Build Web & Sync
+      - name: Force Build and Sync
         run: |
           npm install --legacy-peer-deps
+          # التأكد من بناء ملفات الويب
           npm run build
           
-          # اكتشاف المجلد الذي تم بناؤه تلقائياً
+          # فحص ذكي: أين توجد ملفات الويب؟
           if [ -d "dist" ]; then WEB_DIR="dist";
           elif [ -d "build" ]; then WEB_DIR="build";
           elif [ -d "www" ]; then WEB_DIR="www";
-          else echo "لم يتم العثور على مجلد الويب!" && exit 1; fi
+          else echo "خطأ كارثي: مجلد الويب غير موجود بعد أمر build!" && exit 1; fi
           
+          # مسح الأندرويد القديم وإعادة إنشائه
           rm -rf android
           npx cap add android
+          
+          # نسخ الملفات يدوياً (هذه الخطوة تضمن أن التطبيق لن يكون فارغاً)
           mkdir -p android/app/src/main/assets/public
           cp -r $WEB_DIR/* android/app/src/main/assets/public/
+          
+          # مزامنة الإعدادات
           npx cap sync android
 
-      - name: Inject Permissions & Config
+      - name: Setup Configs & Permissions
         run: |
+          # 1. إنشاء ملف جوجل
           mkdir -p android/app/
           printf '{"project_info":{"project_number":"159537926588","project_id":"my-chats-6313d","storage_bucket":"my-chats-6313d.firebasestorage.app"},"client":[{"client_info":{"mobilesdk_app_id":"1:159537926588:android:a84f991e108f17b6b55bb9","android_client_info":{"package_name":"com.drdshati.app"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyB4WapMcZyri_3TO2KxcwD1B_3USXBYinI"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > android/app/google-services.json
 
+          # 2. الأذونات (المايكروفون)
           sed -i '/<uses-permission android:name="android.permission.INTERNET"/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' android/app/src/main/AndroidManifest.xml
           sed -i 's/android:windowSoftInputMode="adjustNothing"/android:windowSoftInputMode="adjustPan"/' android/app/src/main/AndroidManifest.xml
 
@@ -47,8 +55,10 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
+          # البناء
           ./gradlew assembleRelease
           
+          # التوقيع (لضمان عمل الملف)
           keytool -genkey -v -keystore drdshati.keystore -alias drdshati -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Drdshati, O=App, C=US"
           jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore drdshati.keystore -storepass 123456 app/build/outputs/apk/release/app-release-unsigned.apk drdshati
           mv app/build/outputs/apk/release/app-release-unsigned.apk ../Drdshati-Native-App.apk
