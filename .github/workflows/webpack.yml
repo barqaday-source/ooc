@@ -30,15 +30,16 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-
+          
       - name: Build and Sign APK
         run: |
           cd android
           ./gradlew assembleRelease \
-          -Pandroid.injected.signing.store.file=my-release-key.keystore \
+          -Pandroid.injected.signing.store.file=../my-release-key.keystore \
           -Pandroid.injected.signing.store.password=123456 \
           -Pandroid.injected.signing.key.alias=dardshati \
           -Pandroid.injected.signing.key.password=123456
+
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
