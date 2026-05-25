@@ -34,6 +34,9 @@ jobs:
       - name: Build and Sign APK
         run: |
           cd android
+          # إجبار Gradle على استخدام الحزمة الصحيحة وتغيير الاسم القديم إذا وجد
+          sed -i 's/com.joud.chat/com.drdshati.app/g' app/build.gradle || true
+          # تنظيف أي مخلفات بناء قديمة
           ./gradlew clean assembleRelease \
           -Pandroid.injected.signing.store.file=../my-release-key.keystore \
           -Pandroid.injected.signing.store.password=123456 \
