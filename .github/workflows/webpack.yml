@@ -1,4 +1,4 @@
-name: Strict Build Release APK
+name: Full Android APK Build
 
 on:
   push:
@@ -9,41 +9,46 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & Java
+        uses: actions/setup-node@v4
         with: { node-version: '22' }
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '21' }
 
-      - name: Build Web & Sync
+      - name: Install Dependencies & Build Web
         run: |
           npm install --legacy-peer-deps
           npm run build
-          # حذف المجلد القديم للتأكد من نظافة البناء
-          rm -rf android
+
+      - name: Initialize Android Project
+        run: |
+          # إضافة الأندرويد من الصفر
           npx cap add android
           npx cap sync android
 
-      - name: Create Secrets & Configs
+      - name: Inject Google Config & Permissions
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/dardshati-release.keystore
-          cat > android/app/signing.properties <<EOF
-          storeFile=dardshati-release.keystore
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          EOF
+          # 1. حقن ملف جوجل (بأمان)
           printf '%s' "${{ secrets.GOOGLE_SERVICES_JSON }}" > android/app/google-services.json
+          
+          # 2. حقن صلاحيات المايكروفون (RECORD_AUDIO & MODIFY_AUDIO_SETTINGS)
+          # نستخدم sed للبحث عن سطر الإنترنت وإضافة صلاحيات المايك بعده
+          sed -i '/<uses-permission android:name="android.permission.INTERNET"/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' android/app/src/main/AndroidManifest.xml
+          
+          # 3. ضبط الكيبورد ليكون ثابت (لا يرفع الواجهة)
+          sed -i 's/android:windowSoftInputMode="adjustNothing"/android:windowSoftInputMode="adjustPan"/' android/app/src/main/AndroidManifest.xml
 
-      - name: Strict Gradle Build
+      - name: Build Final APK
         run: |
           cd android
-          # إعطاء صلاحية التنفيذ للملف بعد التأكد من وجوده
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Dardshati-Final-APK
+          name: Final-Drdshati-APK
           path: android/app/build/outputs/apk/release/app-release-unsigned.apk
