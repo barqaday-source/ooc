@@ -8,12 +8,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 1. التنظيف العميق واستبدال الحزمة
       - name: Deep Clean & Force Rename
         run: |
           find . -type f -exec sed -i 's/com.joud.chat/com.drdshati.app/g' {} +
 
-      # 2. إعداد Node الإصدار 20 لحل مشاكل Supabase
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -25,34 +23,33 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 3. تثبيت الاعتماديات مع تجاوز التعارض
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
       - name: Build Web Assets
         run: npm run build
 
-      # 4. التزامن الصارم (الترتيب هنا يمنع اختفاء الملفات)
       - name: Sync Capacitor
         run: |
-          # إضافة الأندرويد إذا لم يكن موجوداً
           npx cap add android || echo "Android already exists"
-          # نسخ ملفات الويب والـ assets أولاً (حل مشكلة ENOENT)
           npx cap copy android
-          # تحديث الإضافات
           npx cap update android
-          # المزامنة النهائية
           npx cap sync android
 
-      # 5. البناء
-      - name: Build APK
+      - name: Build and Sign APK
         run: |
           cd android
+          # إنشاء المفتاح الثابت
+          keytool -genkey -v -keystore my-release-key.keystore -alias dardshati -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=Dardshati, OU=App, O=Dardshati, L=Basra, S=Basra, C=IQ"
+          
+          # عرض البصمة (انسخها من الـ Logs بعد انتهاء العملية)
+          keytool -list -v -keystore my-release-key.keystore -alias dardshati -storepass 123456
+          
+          # البناء باستخدام المفتاح الذي أنشأناه
           rm -rf app/build .gradle
           chmod +x gradlew
-          ./gradlew clean assembleDebug
+          ./gradlew assembleDebug -Pandroid.injected.signing.store.file=my-release-key.keystore -Pandroid.injected.signing.store.password=123456 -Pandroid.injected.signing.key.alias=dardshati -Pandroid.injected.signing.key.password=123456
 
-      # 6. رفع الملف
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
