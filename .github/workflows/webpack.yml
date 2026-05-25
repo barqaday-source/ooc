@@ -19,27 +19,26 @@ jobs:
         run: |
           npm install --legacy-peer-deps
           npm run build
+          # حذف المجلد القديم للتأكد من نظافة البناء
+          rm -rf android
+          npx cap add android
           npx cap sync android
 
-      - name: Create Secrets (Securely)
+      - name: Create Secrets & Configs
         run: |
-          # إنشاء ملف التوقيع
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/dardshati-release.keystore
-          
-          # إنشاء ملف الخصائص
           cat > android/app/signing.properties <<EOF
           storeFile=dardshati-release.keystore
           storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
-          
-          # وضع ملف جوجل الموثوق
-          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+          printf '%s' "${{ secrets.GOOGLE_SERVICES_JSON }}" > android/app/google-services.json
 
       - name: Strict Gradle Build
         run: |
           cd android
+          # إعطاء صلاحية التنفيذ للملف بعد التأكد من وجوده
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
 
