@@ -1,15 +1,17 @@
-name: Build Android App
-
-on:
-  push:
-    branches: [ main ]
+name: Build Android APK
+on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -17,32 +19,20 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
       - name: Install Dependencies
-        run: |
-          npm install --legacy-peer-deps
-          npm install capacitor-voice-recorder --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: Build Web Assets
         run: npm run build
 
-      - name: Sync & Build
-        run: |
-          # نستخدم مجلد اندرويد الموجود في مستودعك كما هو
-          # ننسخ ملف google-services.json لضمان وجوده
-          cp google-services.json android/app/google-services.json
-          
-          # مزامنة الإعدادات
-          npx cap sync android
-          
-          # البناء
-          cd android
-           ./gradlew assembleDebug
+      - name: Sync Capacitor
+        run: npx cap sync android
 
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
