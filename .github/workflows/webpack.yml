@@ -1,4 +1,4 @@
-name: Build Strict Release APK
+name: Build Native Android APK
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-sign:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -16,9 +16,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
 
-      - name: Setup Java JDK
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -26,86 +25,18 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: '11076708'
-          packages: 'platforms;android-34 build-tools;34.0.0 platform-tools'
 
-      - name: Install Dependencies
+      - name: Install All Dependencies
         run: |
-          rm -rf node_modules package-lock.json
           npm cache clean --force
           npm install --legacy-peer-deps
 
-      - name: Strict Package Name Force (com.drdshati.app)
+      - name: Force Strict Package Name (Fixing dardshati -> drdshati)
         run: |
-          echo "جاري تعديل اسم الحزمة بشكل صارم في كل ملفات التكوين..."
-          sed -i 's/com.dardshati.app/com.drdshati.app/g' package.json || true
-          sed -i 's/com.dardshati.app/com.drdshati.app/g' capacitor.config.ts || true
-          sed -i 's/com.dardshati.app/com.drdshati.app/g' capacitor.config.json || true
+          find . -type f -name "capacitor.config.*" -exec sed -i 's/com\.dardshati\.app/com.drdshati.app/g' {} +
+          find . -type f -name "package.json" -exec sed -i 's/com\.dardshati\.app/com.drdshati.app/g' {} +
 
-      - name: Build Web Production Assets
-        run: npm run build
-
-      - name: Recreate Android Native Platform Strictly
-        run: |
-          rm -rf android
-          npx cap add android
-          npx cap sync android
-
-      - name: Inject Firebase google-services.json
-        run: |
-          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
-
-      - name: Decode Production Keystore
-        run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/dardshati-release.keystore
-
-      - name: Inject Strict Signing Configurations into Gradle
-        run: |
-          cat >> android/app/build.gradle <<'EOF'
-          
-          android {
-              signingConfigs {
-                  release {
-                      storeFile file("dardshati-release.keystore")
-                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
-                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
-                  }
-              }
-              buildTypes {
-                  release {
-                      signingConfig signingConfigs.release
-                      minifyEnabled false
-                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-                  }
-                  debug {
-                      signingConfig signingConfigs.release
-                  }
-              }
-          }
-          EOF
-
-      - name: Inject Microphone & Audio Permissions
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<uses-permission android:name="android.permission.INTERNET"/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST
-          sed -i 's/android:windowSoftInputMode="adjustNothing"/android:windowSoftInputMode="adjustResize"/' $MANIFEST
-
-      - name: Register VoiceRecorder Plugin Safely
-        run: |
-          MAINACTIVITY=$(find android/app/src/main/java -name MainActivity.java)
-          if [ -f "$MAINACTIVITY" ]; then
-            sed -i '/import com.getcapacitor.BridgeActivity;/a import capacitor.voice.recorder.VoiceRecorder;' $MAINACTIVITY || true
-            sed -i '/public class MainActivity extends BridgeActivity/a \    @Override
-    public void onCreate(android.os.Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        registerPlugin(VoiceRecorder.class);
-    }' $MAINACTIVITY || true
-          fi
-
-      - name: Inject Google Client IDs into Config
+      - name: Inject Google Client IDs
         run: |
           CONFIG="src/lib/app.config.json"
           if [ -f "$CONFIG" ]; then
@@ -113,25 +44,55 @@ jobs:
             sed -i 's|"GOOGLE_CLIENT_ID_WEB": ".*"|"GOOGLE_CLIENT_ID_WEB": "${{ secrets.GOOGLE_CLIENT_ID_WEB }}"|' $CONFIG
           fi
 
-      - name: Build Pure Android APK Release
-        env:
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: Build Web Assets
+        run: npm run build
+
+      - name: Build Native Android Project Safely
+        run: |
+          rm -rf android
+          npx cap add android
+          npx cap sync android
+
+      - name: Inject Firebase Config
+        run: |
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+
+      - name: Inject Microphone Permissions
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<uses-permission android:name="android.permission.INTERNET"/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST
+
+      - name: Build Pure Unsigned Release APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease
 
-      - name: Print Verification SHA-1 & Package Name
+      - name: Prepare Fixed Keystore
         run: |
-          echo "=== VERIFYING SHA-1 ==="
-          keytool -list -v -keystore android/app/dardshati-release.keystore -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" -alias "${{ secrets.ANDROID_KEY_ALIAS }}" | grep "SHA1" || echo "Could not print SHA1"
-          echo "=== VERIFYING APPLICATION ID ==="
-          grep "applicationId" android/app/build.gradle || echo "Application ID location varies"
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
 
-      - name: Upload Native Release APK Artifact
+      - name: Sign APK with Apksigner (Bulletproof Method)
+        env:
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          ALIGNED_APK="app-release-aligned.apk"
+          FINAL_APK="Dardshati-Release.apk"
+          
+          # تثبيت أدوات جوجل الرسمية للتوقيع
+          sudo apt-get install -y zipalign apksigner
+          
+          # محاذاة الملف (ضروري لمتجر بلاي)
+          zipalign -v -p 4 "$APK_PATH" "$ALIGNED_APK"
+          
+          # توقيع التطبيق بالمفتاح الخاص بك
+          apksigner sign --ks release.keystore --ks-pass "env:KEYSTORE_PASS" --key-pass "env:KEY_PASS" --ks-key-alias "$KEY_ALIAS" --out "$FINAL_APK" "$ALIGNED_APK"
+
+      - name: Upload Final Ready-to-Publish APK
         uses: actions/upload-artifact@v4
         with:
-          name: Dardshati-Release-Strict-APK
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: Dardshati-Signed-Release
+          path: Dardshati-Release.apk
