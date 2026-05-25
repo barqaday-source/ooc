@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace "com.drdshati.app"
+    namespace "com.dardshati.app"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.drdshati.app"
