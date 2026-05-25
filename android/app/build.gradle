@@ -4,7 +4,7 @@ android {
     namespace = "com.drdshati.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.joud.chat"
+        applicationId "com.drdshati.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
