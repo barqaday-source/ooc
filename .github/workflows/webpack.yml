@@ -30,13 +30,12 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          
+
       - name: Build and Sign APK
         run: |
           cd android
-          # تنظيف البناء السابق لضمان استخدام الإعدادات الجديدة
           ./gradlew clean assembleRelease \
-          -Pandroid.injected.signing.store.file=../my-release-key.keystore \
+          -Pandroid.injected.signing.store.file=my-release-key.keystore \
           -Pandroid.injected.signing.store.password=123456 \
           -Pandroid.injected.signing.key.alias=dardshati \
           -Pandroid.injected.signing.key.password=123456
