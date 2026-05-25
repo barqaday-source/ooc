@@ -18,12 +18,23 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '21' }
 
-      - name: Build Web & Create Native Android
+      - name: Build Web & Sync
         run: |
           npm install --legacy-peer-deps
+          # التأكد من بناء ملفات الويب
           npm run build
+          
+          # التأكد من وجود مجلد الويب قبل البدء
+          if [ ! -d "dist" ] && [ -d "build" ]; then mv build dist; fi
+          
+          # حذف المجلد القديم لضمان نظافة البناء
           rm -rf android
           npx cap add android
+          
+          # خطوة الحسم: نسخ ملفات الويب يدوياً لمجلد الأندرويد لضمان عدم ضياعها
+          mkdir -p android/app/src/main/assets/public
+          cp -r dist/* android/app/src/main/assets/public/
+          
           npx cap sync android
 
       - name: Inject Permissions & Config
