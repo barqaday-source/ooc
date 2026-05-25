@@ -30,10 +30,10 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      # 2. خطوة التزامن (ضرورية لدمج الأذونات والتعديلات الأخيرة)
+      # 2. خطوة التحديث والمزامنة (معدلة لضمان تثبيت الإضافات)
       - name: Sync Capacitor
         run: |
-          npm install
+          npx cap update android
           npx cap sync android
 
       # 3. خطوة البناء النظيف
