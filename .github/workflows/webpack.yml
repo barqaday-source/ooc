@@ -16,8 +16,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Dependencies
-        run: npm install --legacy-peer-deps --force
+      - name: Clean Install Dependencies
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --legacy-peer-deps --force
 
       - name: Build Web Assets
         run: npm run build
@@ -28,17 +30,21 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # فك تشفير ملف التوقيع حقك
       - name: Decode Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 --decode > android/app/dardshat.jks
 
+      - name: Remove Old Android
+        run: rm -rf android
+
+      - name: Add Android Platform
+        run: npx cap add android
+
       - name: Sync Capacitor
         run: npx cap sync android
 
-      # بناء APK مع التوقيع حقك الثابت
       - name: Build Signed Debug APK
         env:
           KEYSTORE_FILE: dardshat.jks
