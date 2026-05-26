@@ -6,7 +6,7 @@ concurrency:
 
 on:
   push:
-    branches: [main]
+    branches: 
   workflow_dispatch:
 
 jobs:
@@ -17,9 +17,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          clean: true # يمسح أي ملفات قديمة قبل لا يبدأ
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -27,21 +24,13 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Clean npm cache
-        run: npm cache clean --force
-
-      - name: Remove node_modules and lock
-        run: |
-          rm -rf node_modules
-          rm -f package-lock.json
-
-      - name: Install dependencies from scratch
-        run: npm install
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build web assets
         run: npm run build
         env:
-          CI: false # يتجاهل التحذيرات و يكمل
+          CI: false
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -50,14 +39,8 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Clean Gradle
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew clean
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
 
       - name: Build Debug APK
         run: |
@@ -69,4 +52,3 @@ jobs:
         with:
           name: app-debug-${{ github.run_number }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 7
