@@ -25,8 +25,7 @@
             android:launchMode="singleTask"
             android:exported="true"
             android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustResize"
-            android:fitsSystemWindows="true"
+            android:windowSoftInputMode="adjustPan"
             android:hardwareAccelerated="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
