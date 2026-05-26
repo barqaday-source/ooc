@@ -39,6 +39,32 @@ jobs:
       - name: Add Android Platform
         run: npx cap add android
 
+      # ===== الخطوة الجديدة والمهمة لحل مشكلة المايك =====
+      - name: Inject Microphone Permissions into AndroidManifest
+        run: |
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_PATH" ]; then
+            # إضافة أذونات المايك قبل وسم application مباشرة
+            sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST_PATH
+            echo "SUCCESS: Microphone permissions injected into AndroidManifest.xml"
+          else
+            echo "ERROR: AndroidManifest.xml not found! Stopping build."
+            exit 1
+          fi
+
+      # ===== خطوة الفحص والتحقق لمنع بناء تطبيق عاطل =====
+      - name: Verify Permissions Exist
+        run: |
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          if grep -q "android.permission.RECORD_AUDIO" "$MANIFEST_PATH"; then
+            echo "Verification Passed: Audio permission is present."
+          else
+            echo "Verification Failed: Audio permission is MISSING! Force stopping workflow."
+            exit 1
+          fi
+
+      <layout>video(introSentence="إذا كنت ترغب بلمحة سريعة حول كيفية تتبع الأخطاء البرمجية أثناء عمليات البناء الآلي لملفات الأندرويد، شاهد هذا الشرح التعليمي:", results=["1.2.17"])</layout>
+
       - name: Create Keystore Directory
         run: mkdir -p android/app
 
