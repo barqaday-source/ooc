@@ -18,6 +18,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check Java version
+        run: java -version # راح تشوف Java 17 موجود أصلاً
+
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -31,12 +34,6 @@ jobs:
 
       - name: Build Web Assets
         run: npm run build
-
-      - name: Setup Java 17
-        uses: actions/setup-java@v3 # غيرتها من v4 إلى v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
 
       - name: Remove Old Android Build
         run: rm -rf android
