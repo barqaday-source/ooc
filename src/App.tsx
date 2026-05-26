@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -70,18 +72,42 @@ const AppContent = () => {
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AppSettingsProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner position="top-center" dir="rtl" />
-          <AppContent />
-        </TooltipProvider>
-      </AppSettingsProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  useEffect(() => {
+    // يجبر التطبيق يطلب صلاحية المايك
+    const requestMic = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              sampleRate: 44100
+            } 
+          });
+          // نوقف الستريم مباشرة، بس أخذنا الصلاحية
+          stream.getTracks().forEach(track => track.stop());
+        } catch (err) {
+          console.log('Mic permission denied:', err);
+        }
+      }
+    };
+    requestMic();
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AppSettingsProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner position="top-center" dir="rtl" />
+            <AppContent />
+          </TooltipProvider>
+        </AppSettingsProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
