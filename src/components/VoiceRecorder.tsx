@@ -1,10 +1,10 @@
 // ====================================================================
-// VoiceRecorder - نسخة نهائية: mp4 + بدون AudioContext + معالجة أخطاء
+// VoiceRecorder - نسخة نيتيف: تستخدم capacitor-voice-recorder مباشرة
 // ====================================================================
 
-import { useEffect, useRef, useState } from "react";
-import { Send, Trash2, Loader2 } from "lucide-react";
-import { VoiceRecorder } from 'capacitor-voice-recorder';
+import { useState } from "react";
+import { Send, Trash2, Loader2, Mic } from "lucide-react";
+import { VoiceRecorder, RecordingData, GenericResponse } from 'capacitor-voice-recorder';
 
 interface Props {
   onSend: (blob: Blob, durationSec: number) => Promise<void>;
@@ -22,160 +22,103 @@ const BAR_COUNT = 22;
 export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
-  const [blob, setBlob] = useState<Blob | null>(null);
   const [sending, setSending] = useState(false);
   const [levels, setLevels] = useState<number[]>(Array(BAR_COUNT).fill(0.2));
+  const [timerId, setTimerId] = useState<NodeJS.Timeout | null>(null);
+  const [waveId, setWaveId] = useState<number | null>(null);
 
-  const mediaRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
-  const timerRef = useRef<number | null>(null);
-  const pendingSendRef = useRef(false);
-  const fakeWaveRef = useRef<number | null>(null);
-
-  const cleanupStream = () => {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    if (fakeWaveRef.current) {
-      cancelAnimationFrame(fakeWaveRef.current);
-      fakeWaveRef.current = null;
-    }
-    if (timerRef.current) {
-      window.clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      cleanupStream();
-    };
-  }, []);
-
-  // موجات وهمية تتحرك وقت التسجيل فقط للشكل
+  // موجات وهمية للشكل فقط
   const fakeAnalyze = () => {
     const newLevels = Array.from({ length: BAR_COUNT }, () => {
       return Math.random() * 0.8 + 0.2;
     });
     setLevels(newLevels);
-    fakeWaveRef.current = requestAnimationFrame(() => {
+    const id = requestAnimationFrame(() => {
       setTimeout(fakeAnalyze, 100);
     });
+    setWaveId(id);
+  };
+
+  const stopTimers = () => {
+    if (timerId) clearInterval(timerId);
+    if (waveId) cancelAnimationFrame(waveId);
+    setTimerId(null);
+    setWaveId(null);
   };
 
   const start = async () => {
     try {
-      // 1. التحقق من إذن Capacitor أولاً
-      let status = await VoiceRecorder.hasAudioRecordingPermission();
-      if (!status.value) {
-        status = await VoiceRecorder.requestAudioRecordingPermission();
-      }
-      if (!status.value) {
-        alert("تم رفض إذن الميكروفون. فعّله من: الإعدادات > التطبيقات > تطبيقك > الأذونات > الميكروفون");
+      // 1. اطلب الصلاحية من البلاگن النيتيف
+      const perm: GenericResponse = await VoiceRecorder.requestAudioRecordingPermission();
+      
+      if (!perm.value) {
+        alert("تم رفض إذن الميكروفون. فعّله من: الإعدادات > التطبيقات > دردشاتي > الأذونات > الميكروفون");
         return;
       }
 
-      // 2. نشغل getUserMedia مباشرة - بدون AudioContext
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 44100
-        }
-      });
-      streamRef.current = stream;
-
-      // 3. ترتيب الأولويات لأندرويد: mp4 أولاً
-      const preferredMimeTypes = [
-        "audio/mp4",
-        "audio/aac",
-        "audio/mpeg",
-        "audio/webm;codecs=opus",
-        "audio/webm",
-        "audio/ogg;codecs=opus"
-      ];
-
-      let selectedMime = "";
-      for (const mime of preferredMimeTypes) {
-        if (MediaRecorder.isTypeSupported(mime)) {
-          selectedMime = mime;
-          console.log("Selected MIME:", selectedMime);
-          break;
-        }
+      // 2. ابدأ التسجيل النيتيف
+      const startResult: GenericResponse = await VoiceRecorder.startRecording();
+      
+      if (!startResult.value) {
+        alert("فشل بدء التسجيل");
+        return;
       }
 
-      const options: MediaRecorderOptions = selectedMime
-       ? { mimeType: selectedMime, audioBitsPerSecond: 128000 }
-        : { audioBitsPerSecond: 128000 };
-
-      const mr = new MediaRecorder(stream, options);
-      mediaRef.current = mr;
-      chunksRef.current = [];
-
-      mr.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
-      };
-
-      mr.onstop = () => {
-        const finalMime = mr.mimeType || "audio/mp4";
-        const b = new Blob(chunksRef.current, { type: finalMime });
-        console.log("Final Blob MIME:", finalMime, "Size:", b.size);
-        setBlob(b);
-        cleanupStream();
-        setLevels(Array(BAR_COUNT).fill(0.2));
-
-        if (pendingSendRef.current) {
-          pendingSendRef.current = false;
-          void sendBlob(b);
-        }
-      };
-
-      mr.onerror = (e) => {
-        console.error("MediaRecorder error:", e);
-        alert("حدث خطأ أثناء التسجيل");
-        cancel();
-      };
-
-      mr.start(250);
       setRecording(true);
       setSeconds(0);
-      setBlob(null);
       fakeAnalyze();
-      timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
+      
+      const id = setInterval(() => setSeconds((s) => s + 1), 1000);
+      setTimerId(id);
 
     } catch (e) {
-      console.error("خطأ فادح في بدء التسجيل:", e);
+      console.error("خطأ في بدء التسجيل:", e);
       alert("فشل الوصول للميكروفون. تأكد من تشغيل npx cap sync android");
-      cleanupStream();
     }
   };
 
-  const cancel = () => {
-    if (recording && mediaRef.current?.state === "recording") {
-      mediaRef.current.stop();
-    }
+  const stopAndSend = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!recording) return;
+
     setRecording(false);
-    setBlob(null);
-    setSeconds(0);
-    setLevels(Array(BAR_COUNT).fill(0.2));
-    cleanupStream();
-  };
-
-  const sendBlob = async (b: Blob) => {
-    if (b.size === 0) {
-      alert("التسجيل فارغ. حاول مرة أخرى");
-      return;
-    }
-
+    stopTimers();
     setSending(true);
+
     try {
-      await onSend(b, seconds);
-      setBlob(null);
+      // 3. وقف التسجيل وجيب البيانات
+      const result: RecordingData = await VoiceRecorder.stopRecording();
+      
+      if (!result.value ||!result.value.recordDataBase64) {
+        alert("التسجيل فارغ");
+        setSending(false);
+        return;
+      }
+
+      // 4. حول base64 إلى Blob
+      const base64 = result.value.recordDataBase64;
+      const mimeType = result.value.mimeType || "audio/aac";
+      
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mimeType });
+
+      console.log("Blob ready:", mimeType, "Size:", blob.size);
+
+      if (blob.size === 0) {
+        alert("التسجيل فارغ. حاول مرة أخرى");
+        setSending(false);
+        return;
+      }
+
+      await onSend(blob, seconds);
       setSeconds(0);
       setLevels(Array(BAR_COUNT).fill(0.2));
+      
     } catch (e) {
       console.error("فشل الإرسال:", e);
       alert("فشل إرسال التسجيل");
@@ -184,31 +127,27 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
     }
   };
 
-  const stopAndSend = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (recording && mediaRef.current?.state === "recording") {
-      pendingSendRef.current = true;
-      mediaRef.current.stop();
-      setRecording(false);
-    } else if (blob) {
-      void sendBlob(blob);
+  const cancel = async () => {
+    if (recording) {
+      await VoiceRecorder.stopRecording();
     }
+    setRecording(false);
+    setSeconds(0);
+    setLevels(Array(BAR_COUNT).fill(0.2));
+    stopTimers();
   };
 
   // الحالة 1: زر مايكروفون فقط
-  if (!recording &&!blob) {
+  if (!recording) {
     return (
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); start(); }}
-        disabled={disabled}
+        disabled={disabled || sending}
         className="w-12 h-12 rounded-full bg-white/5 border border-white/10 backdrop-blur-lg flex items-center justify-center disabled:opacity-50 active:scale-95 transition shrink-0 hover:bg-white/10"
         aria-label="تسجيل رسالة صوتية"
       >
-        <svg className="w-5 h-5 text-foreground/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
-        </svg>
+        <Mic className="w-5 h-5 text-foreground/80" />
       </button>
     );
   }
@@ -240,7 +179,7 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
             className="w-[2px] rounded-full bg-red-500/70 transition-all duration-75"
             style={{
               height: `${Math.max(2, level * 18)}px`,
-              opacity: recording? 0.8 : 0.4,
+              opacity: 0.8,
             }}
           />
         ))}
@@ -257,4 +196,4 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
       </button>
     </div>
   );
-            }
+    }
