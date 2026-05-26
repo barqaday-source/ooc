@@ -1,6 +1,5 @@
 // ====================================================================
 // ChatList - قسم المحادثات الخاصة فقط (DMs)
-// يعرض قائمة المحادثات بآخر رسالة + شارة عدّاد رسائل غير مقروءة + حذف المحادثة
 // ====================================================================
 
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -19,7 +18,6 @@ interface DmRow {
   lastMessage: Message | null;
 }
 
-// استخراج معرّف الطرف الآخر من dm_key الشكل: dm:smaller:larger
 function otherIdFromKey(dmKey: string | null | undefined, me: string): string | null {
   if (!dmKey) return null;
   const parts = dmKey.split(":");
@@ -57,12 +55,11 @@ export default function ChatList() {
     setLoading(true);
 
     try {
-      // 1) كل غرف الـ DM التي يكون المستخدم طرفًا فيها
       const { data: dmRooms, error: roomsError } = await supabase
-       .from("rooms")
-       .select("*")
-       .eq("is_dm", true)
-       .ilike("dm_key", `%${user.id}%`);
+      .from("rooms")
+      .select("*")
+      .eq("is_dm", true)
+      .ilike("dm_key", `%${user.id}%`);
 
       if (roomsError) throw roomsError;
 
@@ -71,26 +68,25 @@ export default function ChatList() {
         new Set(dms.map((r) => otherIdFromKey(r.dm_key, user.id)).filter(Boolean) as string[])
       );
 
-      // 2) ملفات الطرف الآخر + آخر رسالة لكل غرفة + النشطون
-      const [profilesRes][lastMsgRes][onlineRes] = await Promise.all([
+      const [profilesRes, lastMsgRes, onlineRes] = await Promise.all([
         otherIds.length
-         ? supabase.from("profiles").select("*").in("id", otherIds)
+        ? supabase.from("profiles").select("*").in("id", otherIds)
           : Promise.resolve({ data: [] as Profile[], error: null }),
         dms.length
-         ? supabase
-             .from("messages")
-             .select("*")
-             .in("room_id", dms.map((r) => r.id))
-             .order("created_at", { ascending: false })
-             .limit(1000) // عشان ما نجيب كل الرسائل
+        ? supabase
+            .from("messages")
+            .select("*")
+            .in("room_id", dms.map((r) => r.id))
+            .order("created_at", { ascending: false })
+            .limit(1000)
           : Promise.resolve({ data: [] as Message[], error: null }),
         supabase
-         .from("profiles")
-         .select("*")
-         .gte("last_seen_at", new Date(Date.now() - 2 * 60 * 1000).toISOString())
-         .neq("id", user.id)
-         .order("last_seen_at", { ascending: false })
-         .limit(20),
+        .from("profiles")
+        .select("*")
+        .gte("last_seen_at", new Date(Date.now() - 2 * 60 * 1000).toISOString())
+        .neq("id", user.id)
+        .order("last_seen_at", { ascending: false })
+        .limit(20),
       ]);
 
       if (profilesRes.error) throw profilesRes.error;
@@ -99,21 +95,19 @@ export default function ChatList() {
       const profMap = new Map(((profilesRes.data as Profile[])?? []).map((p) => [p.id, p]));
       const lastMap = new Map<string, Message>();
 
-      // ناخذ آخر رسالة فقط لكل غرفة
       for (const m of ((lastMsgRes.data as Message[])?? [])) {
         if (!lastMap.has(m.room_id)) lastMap.set(m.room_id, m);
       }
 
       const built: DmRow[] = dms
-       .map((r) => {
+      .map((r) => {
           const oid = otherIdFromKey(r.dm_key, user.id);
           const other = oid? profMap.get(oid) : undefined;
           if (!other) return null;
           return { room: r, other, lastMessage: lastMap.get(r.id)?? null };
         })
-       .filter(Boolean) as DmRow[];
+      .filter(Boolean) as DmRow[];
 
-      // ترتيب حسب آخر رسالة ثم تاريخ إنشاء الغرفة
       built.sort((a, b) => {
         const at = a.lastMessage?.created_at?? a.room.created_at;
         const bt = b.lastMessage?.created_at?? b.room.created_at;
@@ -145,7 +139,7 @@ export default function ChatList() {
         (r.other.display_name || "").toLowerCase().includes(q) ||
         r.other.username.toLowerCase().includes(q)
     );
-  }, [rows][search]);
+  }, [rows, search]);
 
   const isOnline = useCallback(
     (id: string) => activeUsers.some((p) => p.id === id),
@@ -166,32 +160,16 @@ export default function ChatList() {
     otherName: string
   ) => {
     e.stopPropagation();
-
-    if (
-     !confirm(
-        `هل أنت متأكد من حذف محادثتك مع ${otherName} بالكامل؟ لا يمكن التراجع عن هذا الإجراء.`
-      )
-    ) {
-      return;
-    }
-
+    if (!confirm(`هل أنت متأكد من حذف محادثتك مع ${otherName} بالكامل؟`)) return;
     setDeletingId(roomId);
-
     try {
-      // 1. حذف جميع الرسائل في الغرفة
-      const { error: msgError } = await supabase.from("messages").delete().eq("room_id", roomId);
-      if (msgError) throw msgError;
-
-      // 2. حذف الغرفة نفسها
-      const { error: roomError } = await supabase.from("rooms").delete().eq("id", roomId);
-      if (roomError) throw roomError;
-
-      // 3. تحديث الواجهة فوراً
+      await supabase.from("messages").delete().eq("room_id", roomId);
+      await supabase.from("rooms").delete().eq("id", roomId);
       setRows((prev) => prev.filter((r) => r.room.id!== roomId));
       toast.success("تم حذف المحادثة بنجاح");
     } catch (error) {
       console.error("Delete error:", error);
-      toast.error("حدث خطأ أثناء الحذف. تأكد من صلاحيات RLS");
+      toast.error("حدث خطأ أثناء الحذف");
     } finally {
       setDeletingId(null);
     }
@@ -211,7 +189,6 @@ export default function ChatList() {
           </button>
         </section>
 
-        {/* النشطون الآن */}
         <section className="mb-2">
           <div className="px-4 flex gap-4 overflow-x-auto pb-3 snap-x">
             {activeUsers.length === 0? (
@@ -283,7 +260,6 @@ export default function ChatList() {
                       isDeleting? "opacity-50 pointer-events-none" : ""
                     }`}
                   >
-                    {/* الأفاتار يفتح صفحة المستخدم */}
                     <button
                       onClick={() => navigate(`/u/${r.other.id}`)}
                       className="shrink-0 active:scale-95"
@@ -297,9 +273,8 @@ export default function ChatList() {
                       />
                     </button>
 
-                    {/* الجسم يفتح المحادثة الخاصة - هذا التعديل المهم */}
                     <button
-                      onClick={() => navigate(`/pchat/${r.room.id}`)}
+                      onClick={() => navigate(`/dm/${r.room.id}`)}
                       className="flex-1 min-w-0 text-right active:scale-[0.98] transition"
                     >
                       <div className="flex justify-between items-baseline gap-2">
@@ -319,7 +294,6 @@ export default function ChatList() {
                       </p>
                     </button>
 
-                    {/* زر الحذف */}
                     <button
                       onClick={(e) =>
                         handleDeleteConversation(
@@ -353,4 +327,4 @@ export default function ChatList() {
       </div>
     </AppShell>
   );
-                }
+    }
