@@ -1,99 +1,40 @@
-
 name: Build Debug APK
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [main]
+    # احذف paths نهائياً عشان يبني على كل تغيير
+  workflow_dispatch: # تقدر تشغله يدوي من GitHub
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
-      - name: Clean Install Dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install --legacy-peer-deps --force
-
-      - name: Build Web Assets
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build web
         run: npm run build
-
-      - name: Setup Java 17
+        
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
-
-      - name: Remove Old Android Build
-        run: rm -rf android
-
-      - name: Add Android Platform
-        run: npx cap add android
-
-      # خطوة حقن أذونات المايك تلقائياً داخل الـ Manifest
-      - name: Inject Microphone Permissions into AndroidManifest
-        run: |
-          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST_PATH" ]; then
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST_PATH
-            echo "SUCCESS: Microphone permissions injected into AndroidManifest.xml"
-          else
-            echo "ERROR: AndroidManifest.xml not found! Stopping build."
-            exit 1
-          fi
-
-      # خطوة التحقق الإلزامية لضمان وجود الأذونات قبل البناء
-      - name: Verify Permissions Exist
-        run: |
-          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
-          if grep -q "android.permission.RECORD_AUDIO" "$MANIFEST_PATH"; then
-            echo "Verification Passed: Audio permission is present."
-          else
-            echo "Verification Failed: Audio permission is MISSING! Force stopping workflow."
-            exit 1
-          fi
-
-      - name: Create Keystore Directory
-        run: mkdir -p android/app
-
-      - name: Decode Keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/dardshat.jks
-
-      - name: Verify Keystore File
-        run: |
-          ls -la android/app/dardshat.jks
-          file android/app/dardshat.jks
-
-      - name: Copy Web Assets + Sync Plugins
-        run: npx cap sync android
-
-      - name: Build Signed Debug APK
-        env:
-          KEYSTORE_FILE: dardshat.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          
+      - name: Build APK
         run: |
           cd android
-          chmod +x gradlew
-          ./gradlew clean assembleDebug --stacktrace
-
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
+          ./gradlew assembleDebug
+          
+      - uses: actions/upload-artifact@v4
         with:
-          name: دردشاتي-debug
+          name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
