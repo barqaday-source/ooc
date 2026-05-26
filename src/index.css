@@ -1,116 +1,218 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --app-bg: #B6D6FF;
+    --app-icon: #1A1821;
+    --app-btn: #5F9EF4;
+    --background: 212 100% 86%;
+    --foreground: 252 12% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 252 12% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
-    --gradient-bg: linear-gradient(180deg, #F8FAFF 0%, #FFFFFF 100%);
-    /* مساحات آمنة للأندرويد */
-    --sat: env(safe-area-inset-top, 0px);
-    --sar: env(safe-area-inset-right, 0px); 
-    --sab: env(safe-area-inset-bottom, 0px);
-    --sal: env(safe-area-inset-left, 0px);
+    --popover-foreground: 252 12% 11%;
+    --primary: 226 56% 84%;
+    --primary-foreground: 252 20% 15%;
+    --primary-deep: 212 100% 86%;
+    --admin: 214 87% 66%;
+    --admin-foreground: 0 0% 100%;
+    --admin-deep: 220 90% 55%;
+    --secondary: 207 100% 97%;
+    --secondary-foreground: 252 12% 11%;
+    --muted: 212 100% 93%;
+    --muted-foreground: 226 35% 28%;
+    --accent: 226 56% 84%;
+    --accent-foreground: 252 20% 15%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --live: 354 100% 60%;
+    --border: 56 100% 77%;
+    --input: 212 100% 92%;
+    --ring: 226 56% 70%;
+    --radius: 1.5rem;
+    --glass: 0 0% 100% / 0.42;
+    --glass-thick: 0 0% 100% / 0.58;
+    --glass-soft: 0 0% 100% / 0.28;
+    --glass-border: 56 100% 77% / 0.65;
+    --gradient-bg: linear-gradient(160deg, hsl(212 100% 86%) 0%, hsl(212 100% 93%) 52%, hsl(56 100% 93%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(212 100% 86%) 0%, hsl(226 56% 84%) 100%);
+    --shadow-sm: 0 2px 10px hsl(212 60% 50% / 0.06);
+    --shadow-md: 0 8px 32px hsl(212 60% 40% / 0.10);
+    --shadow-lg: 0 20px 60px hsl(212 60% 40% / 0.15);
+    --shadow-glass: 0 8px 32px hsl(212 60% 40% / 0.12);
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --app-bg: #0A0E1A;
+    --app-icon: #E5E7EB;
+    --app-btn: #6366F1;
+    --background: 225 42% 4%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --card: 228 34% 8%;
+    --card-foreground: 210 40% 96%;
+    --glass: 222 30% 14% / 0.55;
+    --glass-thick: 222 30% 14% / 0.75;
+    --glass-soft: 222 30% 14% / 0.35;
   }
-}
 
-@layer base {
     * {
     @apply border-border;
     -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
     box-sizing: border-box;
   }
-  
+
   html {
-    height: 100% !important;
-    width: 100% !important;
-    overflow: hidden !important;
-    overscroll-behavior: none !important;
+    direction: rtl;
+    -webkit-text-size-adjust: 100%;
+    height: 100%;
+    width: 100%;
+    overscroll-behavior: none;
+    overflow: hidden;
+    position: fixed;
   }
 
   body {
-    @apply bg-background text-foreground;
-    height: 100% !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    position: fixed !important;
-    overflow: hidden !important;
-    overscroll-behavior: none !important;
+    @apply text-foreground antialiased;
+    background-color: hsl(var(--background));
+    background-image: var(--gradient-bg);
+    background-attachment: fixed;
+    font-family: 'Cairo', system-ui, sans-serif;
+    font-feature-settings: "kern", "liga", "calt";
+    letter-spacing: -0.005em;
+    transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+    position: fixed;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    top: 0;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    touch-action: pan-y;
+    /* هذا يخلي مساحة بيضاء تحت التطبيق مثل كل التطبيقات */
+    padding-bottom: var(--safe-area-bottom);
+  }
+
+  #root, #app, ion-app {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
-    /* يرفع التطبيق فوق شريط الجوال العلوي */
-    padding-top: var(--sat) !important;
+    overscroll-behavior-y: contain;
+    position: relative;
+    /* مساحة فوق عشان شريط الجوال */
+    padding-top: var(--safe-area-top);
   }
 
-  #root {
-    height: calc(100dvh - var(--sat)) !important;
-    width: 100vw !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    position: relative !important;
-    background: var(--gradient-bg);
-    /* يمنع التمطط والسحب */
-    overscroll-behavior-y: contain !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  /* منع التحديد والسحب على كل شي */
-    * {
+  button, a, .glass-card {
+    -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
-    -webkit-touch-callout: none;
   }
 
-  /* السماح بالكتابة بس في الحقول */
-  input, textarea, [contenteditable="true"] {
-    -webkit-user-select: text !important;
-    user-select: text !important;
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px hsl(var(--input)) inset !important;
+  }
+
+  ion-tab-bar {
+    padding-bottom: var(--safe-area-bottom) !important;
+    height: calc(56px + var(--safe-area-bottom)) !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 99999 !important;
+  }
+
+  ion-header {
+    padding-top: var(--safe-area-top);
+  }
+
+  ion-content {
+    --padding-bottom: calc(56px + var(--safe-area-bottom));
+    --padding-top: var(--safe-area-top);
+    overscroll-behavior: none;
+  }
+
+  ion-card {
+    display: none !important;
   }
 }
 
 @layer components {
-  /* الشريط السفلي الثابت - قسري ومستحيل ينزل */
+  .glass {
+    background: hsla(var(--glass));
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid hsla(var(--glass-border));
+  }
+  
+  .glass-thick {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(22px) saturate(180%);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+  }
+  
+  .glass-card {
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(14px) saturate(170%);
+    -webkit-backdrop-filter: blur(14px) saturate(170%);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow: var(--shadow-glass);
+    border-radius: var(--radius);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+  
+  .dark .glass-card {
+    background: hsla(var(--glass));
+    border: 1px solid hsla(var(--glass-border));
+  }
+  
+  .btn-primary {
+    background-color: var(--app-btn);
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-primary:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  }
+
+  .no-scroll {
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+    touch-action: none !important;
+  }
+
+  /* الشريط السفلي الثابت - يرتفع فوق أزرار النظام */
   .bottom-nav-container {
     position: fixed !important;
     bottom: 0 !important;
@@ -118,61 +220,41 @@
     right: 0 !important;
     z-index: 99999 !important;
     height: 64px !important;
-    padding-bottom: var(--sab) !important;
-    padding-left: var(--sal) !important;
-    padding-right: var(--sar) !important;
+    padding-bottom: var(--safe-area-bottom) !important;
+    padding-left: var(--safe-area-left) !important;
+    padding-right: var(--safe-area-right) !important;
     background: #FFFFFF !important;
     border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08) !important;
     transform: translateZ(0) !important;
-    will-change: transform !important;
-    backface-visibility: hidden !important;
   }
 
-  /* مساحة فاضية فوق الشريط عشان المحتوى ما يختفي */
+  /* مساحة فاضية عشان المحتوى ما يختفي تحت الشريط */
   .bottom-nav-spacer {
-    height: calc(64px + var(--sab)) !important;
+    height: calc(64px + var(--safe-area-bottom)) !important;
     width: 100% !important;
     flex-shrink: 0 !important;
     pointer-events: none !important;
   }
 
-  /* الهيدر الثابت فوق */
-  .header-fixed {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 9999 !important;
-    background: var(--gradient-bg) !important;
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-    padding-left: var(--sal) !important;
-    padding-right: var(--sar) !important;
-  }
-
-  /* حاوية المحادثة - عشان الرسائل ما تختفي تحت الشريط */
+  /* حاوية المحادثة - تمنع الرسائل تختفي */
   .chat-messages-wrapper {
-    padding-bottom: calc(64px + var(--sab) + 16px) !important;
+    padding-bottom: calc(64px + var(--safe-area-bottom) + 16px) !important;
     min-height: 100% !important;
   }
 
-  /* منع التمطط والسحب */
-  .no-bounce {
-    overscroll-behavior-y: contain !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  /* شريط الكتابة حق المحادثة */
+  /* شريط الكتابة */
   .chat-input-bar {
     position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
     z-index: 99998 !important;
-    padding-bottom: calc(8px + var(--sab)) !important;
+    padding-bottom: calc(8px + var(--safe-area-bottom)) !important;
     padding-top: 8px !important;
-    padding-left: calc(12px + var(--sal)) !important;
-    padding-right: calc(12px + var(--sar)) !important;
+    padding-left: calc(12px + var(--safe-area-left)) !important;
+    padding-right: calc(12px + var(--safe-area-right)) !important;
     background: #FFFFFF !important;
     border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
   }
-}
+      }
