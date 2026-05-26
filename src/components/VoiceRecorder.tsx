@@ -1,5 +1,5 @@
 // ====================================================================
-// VoiceRecorder - نسخة نهائية نيتيف 100% - تسجل صوت حقيقي
+// VoiceRecorder - نسخة مضمونة: طلب إذن WebView + تسجيل نيتيف
 // ====================================================================
 
 import { useState } from "react";
@@ -47,15 +47,29 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
 
   const start = async () => {
     try {
-      // 1. اطلب الصلاحية - هاي تجبر النظام يطلع البوب اب
+      // الخطوة 1: طلب الإذن من WebView - هذا يطلع البوب اب
+      console.log("طلب الإذن من WebView...");
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        } 
+      });
+      
+      // نوقف الستريم فوراً لأننا نستخدم البلاگن النيتيف للتسجيل
+      stream.getTracks().forEach(track => track.stop());
+      console.log("WebView وافق على المايك");
+
+      // الخطوة 2: طلب الإذن من البلاگن النيتيف
       const perm = await VoiceRecorder.requestAudioRecordingPermission();
       
       if (!perm.value) {
-        alert("لازم تسمح للمايكروفون من: الإعدادات > التطبيقات > دردشاتي > الأذونات > الميكروفون > سماح");
+        alert("يرجى منح التطبيق إذن الوصول للميكروفون من إعدادات الهاتف > التطبيقات > دردشاتي > الأذونات");
         return;
       }
 
-      // 2. ابدأ التسجيل النيتيف
+      // الخطوة 3: ابدأ التسجيل النيتيف
       const startResult = await VoiceRecorder.startRecording();
       
       if (!startResult.value) {
@@ -70,9 +84,13 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
       const id = setInterval(() => setSeconds((s) => s + 1), 1000);
       setTimerId(id);
 
-    } catch (e: any) {
-      console.error("خطأ في بدء التسجيل:", e);
-      alert(`فشل الوصول للميكروفون: ${e.message}`);
+    } catch (error: any) {
+      console.error("فشل الوصول إلى المايك:", error);
+      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        alert("يرجى منح التطبيق إذن الوصول للميكروفون من إعدادات الهاتف.");
+      } else {
+        alert(`فشل الوصول للمايك: ${error.message}`);
+      }
     }
   };
 
@@ -85,7 +103,6 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
     setSending(true);
 
     try {
-      // 3. وقف التسجيل وجيب الصوت الحقيقي
       const result: RecordingData = await VoiceRecorder.stopRecording();
       
       if (!result.value?.recordDataBase64) {
@@ -94,7 +111,6 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
         return;
       }
 
-      // 4. حول base64 إلى Blob
       const base64 = result.value.recordDataBase64;
       const mimeType = result.value.mimeType || "audio/aac";
       
@@ -151,7 +167,7 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="absolute bottom-0 left-1/2 -translate-x-1/2 z-20 flex items-center w-[96%] h-[50px] my-[5px] px-[15px] bg-[#fff1f1] border border-[#ffcccc] rounded-[30px] shadow-[0_2px_8px_rgba(255,204,204,0.3)]"
+      className="absolute bottom-0 left-1/2 -translate-x-1/2 z-20 flex items-center w-[96%] h- my-[5px] px- bg-[#fff1f1] border border-[#ffcccc] rounded- shadow-[0_2px_8px_rgba(255,204,204,0.3)]"
     >
       <button
         type="button"
