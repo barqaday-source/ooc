@@ -1,13 +1,19 @@
 name: Build Debug APK
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
-    branches: [ main ]
+    branches: 
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,11 +33,10 @@ jobs:
         run: npm run build
 
       - name: Setup Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v3 # غيرتها من v4 إلى v3
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
       - name: Remove Old Android Build
         run: rm -rf android
@@ -39,26 +44,24 @@ jobs:
       - name: Add Android Platform
         run: npx cap add android
 
-      # خطوة حقن أذونات المايك تلقائياً داخل الـ Manifest
       - name: Inject Microphone Permissions into AndroidManifest
         run: |
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
             sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST_PATH
-            echo "SUCCESS: Microphone permissions injected into AndroidManifest.xml"
+            echo "SUCCESS: Microphone permissions injected"
           else
-            echo "ERROR: AndroidManifest.xml not found! Stopping build."
+            echo "ERROR: AndroidManifest.xml not found!"
             exit 1
           fi
 
-      # خطوة التحقق الإلزامية لضمان وجود الأذونات قبل البناء
       - name: Verify Permissions Exist
         run: |
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if grep -q "android.permission.RECORD_AUDIO" "$MANIFEST_PATH"; then
             echo "Verification Passed: Audio permission is present."
           else
-            echo "Verification Failed: Audio permission is MISSING! Force stopping workflow."
+            echo "Verification Failed: Audio permission is MISSING!"
             exit 1
           fi
 
