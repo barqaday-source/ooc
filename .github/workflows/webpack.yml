@@ -33,23 +33,28 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Decode Keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/dardshat.jks
-
       - name: Remove Old Android Build
         run: rm -rf android
 
       - name: Add Android Platform
         run: npx cap add android
 
-      - name: Copy Web Assets + Sync Plugins
-        run: npx cap sync android
+      - name: Create Keystore Directory
+        run: mkdir -p android/app
+
+      - name: Decode Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/dardshat.jks
 
       - name: Verify Keystore File
-        run: ls -la android/app/dardshat.jks
+        run: |
+          ls -la android/app/dardshat.jks
+          file android/app/dardshat.jks
+
+      - name: Copy Web Assets + Sync Plugins
+        run: npx cap sync android
 
       - name: Build Signed Debug APK
         env:
