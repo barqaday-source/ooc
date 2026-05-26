@@ -1,10 +1,10 @@
 // ====================================================================
-// VoiceRecorder - نسخة نيتيف: تستخدم capacitor-voice-recorder مباشرة
+// VoiceRecorder - نسخة نهائية نيتيف 100% - تسجل صوت حقيقي
 // ====================================================================
 
 import { useState } from "react";
 import { Send, Trash2, Loader2, Mic } from "lucide-react";
-import { VoiceRecorder, RecordingData, GenericResponse } from 'capacitor-voice-recorder';
+import { VoiceRecorder, RecordingData } from 'capacitor-voice-recorder';
 
 interface Props {
   onSend: (blob: Blob, durationSec: number) => Promise<void>;
@@ -27,7 +27,6 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
   const [timerId, setTimerId] = useState<NodeJS.Timeout | null>(null);
   const [waveId, setWaveId] = useState<number | null>(null);
 
-  // موجات وهمية للشكل فقط
   const fakeAnalyze = () => {
     const newLevels = Array.from({ length: BAR_COUNT }, () => {
       return Math.random() * 0.8 + 0.2;
@@ -48,16 +47,16 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
 
   const start = async () => {
     try {
-      // 1. اطلب الصلاحية من البلاگن النيتيف
-      const perm: GenericResponse = await VoiceRecorder.requestAudioRecordingPermission();
+      // 1. اطلب الصلاحية - هاي تجبر النظام يطلع البوب اب
+      const perm = await VoiceRecorder.requestAudioRecordingPermission();
       
       if (!perm.value) {
-        alert("تم رفض إذن الميكروفون. فعّله من: الإعدادات > التطبيقات > دردشاتي > الأذونات > الميكروفون");
+        alert("لازم تسمح للمايكروفون من: الإعدادات > التطبيقات > دردشاتي > الأذونات > الميكروفون > سماح");
         return;
       }
 
       // 2. ابدأ التسجيل النيتيف
-      const startResult: GenericResponse = await VoiceRecorder.startRecording();
+      const startResult = await VoiceRecorder.startRecording();
       
       if (!startResult.value) {
         alert("فشل بدء التسجيل");
@@ -71,9 +70,9 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
       const id = setInterval(() => setSeconds((s) => s + 1), 1000);
       setTimerId(id);
 
-    } catch (e) {
+    } catch (e: any) {
       console.error("خطأ في بدء التسجيل:", e);
-      alert("فشل الوصول للميكروفون. تأكد من تشغيل npx cap sync android");
+      alert(`فشل الوصول للميكروفون: ${e.message}`);
     }
   };
 
@@ -86,10 +85,10 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
     setSending(true);
 
     try {
-      // 3. وقف التسجيل وجيب البيانات
+      // 3. وقف التسجيل وجيب الصوت الحقيقي
       const result: RecordingData = await VoiceRecorder.stopRecording();
       
-      if (!result.value ||!result.value.recordDataBase64) {
+      if (!result.value?.recordDataBase64) {
         alert("التسجيل فارغ");
         setSending(false);
         return;
@@ -107,10 +106,8 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type: mimeType });
 
-      console.log("Blob ready:", mimeType, "Size:", blob.size);
-
-      if (blob.size === 0) {
-        alert("التسجيل فارغ. حاول مرة أخرى");
+      if (blob.size < 1000) {
+        alert("الصوت قصير جداً أو فارغ");
         setSending(false);
         return;
       }
@@ -119,9 +116,9 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
       setSeconds(0);
       setLevels(Array(BAR_COUNT).fill(0.2));
       
-    } catch (e) {
+    } catch (e: any) {
       console.error("فشل الإرسال:", e);
-      alert("فشل إرسال التسجيل");
+      alert(`فشل إرسال التسجيل: ${e.message}`);
     } finally {
       setSending(false);
     }
@@ -137,7 +134,6 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
     stopTimers();
   };
 
-  // الحالة 1: زر مايكروفون فقط
   if (!recording) {
     return (
       <button
@@ -152,7 +148,6 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
     );
   }
 
-  // الحالة 2: كرت التسجيل
   return (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -196,4 +191,4 @@ export default function VoiceRecorderComponent({ onSend, disabled }: Props) {
       </button>
     </div>
   );
-    }
+}
