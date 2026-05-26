@@ -22,26 +22,26 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      # فك تشفير ملف التوقيع حقك
-      - name: Decode Keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/my-release-key.jks
-
-      - name: Sync Capacitor
-        run: npx cap sync android
-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
+      # فك تشفير ملف التوقيع حقك
+      - name: Decode Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/dardshat.jks
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
       # بناء APK مع التوقيع حقك الثابت
       - name: Build Signed Debug APK
         env:
-          KEYSTORE_FILE: my-release-key.jks
+          KEYSTORE_FILE: dardshat.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
