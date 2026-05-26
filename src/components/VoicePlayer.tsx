@@ -1,5 +1,5 @@
 // ====================================================================
-// VoicePlayer - مشغّل صوت احترافي زجاجي مع Seek + موجات واتساب + تحسين نقاوة
+// VoicePlayer - مشغّل صوت بسيط بدون Web Audio API عشان يشتغل بالـ APK
 // ====================================================================
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
@@ -28,70 +28,6 @@ export default function VoicePlayer({ src, duration, mine = false }: Props) {
   const [total, setTotal] = useState(duration || 0);
   const [isSeeking, setIsSeeking] = useState(false);
 
-  // Web Audio API لتحسين النقاوة
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const compressorRef = useRef<DynamicsCompressorNode | null>(null);
-  const trebleBoostRef = useRef<BiquadFilterNode | null>(null);
-  const bassBoostRef = useRef<BiquadFilterNode | null>(null);
-  const gainRef = useRef<GainNode | null>(null);
-
-  // تهيئة Web Audio API مرة واحدة
-  useEffect(() => {
-    const a = audioRef.current;
-    if (!a) return;
-
-    // نعمل setup مرة واحدة فقط
-    if (!audioCtxRef.current) {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioContext();
-      audioCtxRef.current = ctx;
-
-      const source = ctx.createMediaElementSource(a);
-      sourceNodeRef.current = source;
-
-      // 1. فلتر لرفع الترددات العالية = وضوح أكثر
-      const treble = ctx.createBiquadFilter();
-      treble.type = "highshelf";
-      treble.frequency.value = 3000; // يبدأ من 3kHz
-      treble.gain.value = 4; // +4dB زيادة وضوح
-      trebleBoostRef.current = treble;
-
-      // 2. فلتر خفيف للبيس عشان الصوت ما يصير نحيف
-      const bass = ctx.createBiquadFilter();
-      bass.type = "lowshelf";
-      bass.frequency.value = 200;
-      bass.gain.value = 2; // +2dB
-      bassBoostRef.current = bass;
-
-      // 3. Compressor = يخلي الصوت قوي وموازن، يشيل الخفوت
-      const compressor = ctx.createDynamicsCompressor();
-      compressor.threshold.value = -24;
-      compressor.knee.value = 30;
-      compressor.ratio.value = 12;
-      compressor.attack.value = 0.003;
-      compressor.release.value = 0.25;
-      compressorRef.current = compressor;
-
-      // 4. Gain للتحكم النهائي
-      const gain = ctx.createGain();
-      gain.gain.value = 1.1; // زيادة 10% قوة
-      gainRef.current = gain;
-
-      // توصيل السلسلة: source -> bass -> treble -> compressor -> gain -> output
-      source
-       .connect(bass)
-       .connect(treble)
-       .connect(compressor)
-       .connect(gain)
-       .connect(ctx.destination);
-    }
-
-    return () => {
-      // ما نسكر الـ context عشان لو شغل مقطع ثاني ما نعيد الإنشاء
-    };
-  }, []);
-
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
@@ -109,13 +45,7 @@ export default function VoicePlayer({ src, duration, mine = false }: Props) {
         setTotal(a.duration);
       }
     };
-    const onPlay = () => {
-      setPlaying(true);
-      // لازم نشغل AudioContext بعد تفاعل المستخدم
-      if (audioCtxRef.current?.state === "suspended") {
-        audioCtxRef.current.resume();
-      }
-    };
+    const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
 
     a.addEventListener("timeupdate", onTime);
@@ -212,7 +142,6 @@ export default function VoicePlayer({ src, duration, mine = false }: Props) {
     }
   }, [isSeeking, handleMouseMove, handleMouseUp]);
 
-  // ثيم ديناميكي: يتغير تلقائي مع الدارك مود
   const theme = {
     container: "bg-transparent border border-zinc-200/60 dark:border-zinc-700/50 backdrop-blur-sm rounded-[24px]",
     button: "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 w-8 h-8 flex items-center justify-center rounded-full shrink-0 transition-opacity",
