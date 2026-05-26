@@ -1,5 +1,6 @@
 // ====================================================================
 // PrivateChat - محادثة خاصة مشفرة E2E + حضور + آخر ظهور
+// لا يوجد إدارة غرف أو طرد أو إعدادات
 // ====================================================================
 
 import { useEffect, useRef, useState, FormEvent, ChangeEvent } from "react";
@@ -31,7 +32,7 @@ type OtherUserProfile = {
   display_name: string | null;
   username: string | null;
   avatar_url: string | null;
-  last_seen: string | null;
+  last_seen_at: string | null;
   is_online?: boolean;
 };
 
@@ -71,44 +72,56 @@ export default function PrivateChat() {
 
     const initPrivateChat = async () => {
       try {
-        // تحقق أن الغرفة خاصة
+        // 1. تحقق أن الغرفة خاصة DM
         const { data: roomData, error: roomErr } = await supabase
-        .from("rooms")
-        .select("id, type")
-        .eq("id", roomId)
-        .eq("type", "private")
-        .maybeSingle();
+       .from("rooms")
+       .select("id, is_dm, dm_key")
+       .eq("id", roomId)
+       .eq("is_dm", true)
+       .maybeSingle();
 
         if (roomErr ||!roomData) {
-          toast.error("المحادثة غير موجودة");
+          toast.error("المحادثة غير موجودة أو ليست محادثة خاصة");
           navigate("/chat");
           return;
         }
 
-        // جيب الطرف الثاني
-        const { data: members } = await supabase
-        .from("room_members")
-        .select("user_id")
-        .eq("room_id", roomId)
-        .neq("user_id", user.id)
-        .maybeSingle();
+        // 2. جيب الطرف الثاني من room_members
+        const { data: members, error: memErr } = await supabase
+       .from("room_members")
+       .select("user_id")
+       .eq("room_id", roomId)
+       .neq("user_id", user.id);
 
-        if (members?.user_id) {
-          const { data: userData } = await supabase
-          .from("profiles")
-          .select("id, display_name, username, avatar_url, last_seen")
-          .eq("id", members.user_id)
-          .maybeSingle();
-
-          if (userData) {
-            setOtherUser({
-            ...userData,
-              is_online: isUserOnline(userData.id)
-            });
-          }
+        if (memErr ||!members || members.length === 0) {
+          toast.error("لم يتم العثور على الطرف الآخر");
+          navigate("/chat");
+          return;
         }
+
+        const otherId = members[0].user_id;
+
+        // 3. جيب بيانات الطرف الثاني
+        const { data: userData, error: userErr } = await supabase
+       .from("profiles")
+       .select("id, display_name, username, avatar_url, last_seen_at")
+       .eq("id", otherId)
+       .maybeSingle();
+
+        if (userErr ||!userData) {
+          toast.error("فشل تحميل بيانات المستخدم");
+          navigate("/chat");
+          return;
+        }
+
+        setOtherUser({
+         ...userData,
+          is_online: isUserOnline(userData.id)
+        });
       } catch (err) {
         console.error('PrivateChat init error:', err);
+        toast.error("حدث خطأ غير متوقع");
+        navigate("/chat");
       }
     };
 
@@ -225,7 +238,9 @@ export default function PrivateChat() {
   return (
     <div className="min-h-screen bg-app flex flex-col max-w-[500px] mx-auto">
       <header className="h-20 mx-3 mt-3 px-4 flex items-center gap-3 glass-thick rounded-3xl safe-top sticky top-3 z-40 shadow-glassy">
-        <button onClick={() => navigate("/chat")} className="p-2 -mr-2"><ArrowRight className="w-5 h-5" /></button>
+        <button onClick={() => navigate("/chat")} className="p-2 -mr-2">
+          <ArrowRight className="w-5 h-5" />
+        </button>
 
         {otherUser? (
           <>
@@ -252,7 +267,7 @@ export default function PrivateChat() {
                     نشط الآن
                   </>
                 ) : (
-                  formatLastSeen(otherUser.last_seen)
+                  formatLastSeen(otherUser.last_seen_at)
                 )}
               </p>
             </div>
@@ -318,7 +333,7 @@ export default function PrivateChat() {
                       </p>
                       <p className="truncate">
                         {repliedMsg.message_type === "text"
-                        ? repliedMsg.content
+                       ? repliedMsg.content
                           : repliedMsg.message_type === "image"? "📷 صورة" : "🎙️ رسالة صوتية"}
                       </p>
                     </button>
@@ -328,11 +343,11 @@ export default function PrivateChat() {
                     onClick={() => setActionMsgId(msg.id)}
                     className={`text-sm break-words text-right transition active:scale-[0.98] cursor-pointer ${
                       msg.message_type === "image"
-                      ? "p-0 relative group"
+                     ? "p-0 relative group"
                         : msg.message_type === "voice"
-                        ? "p-0"
+                       ? "p-0"
                           : mine
-                            ? "px-3 py-2 bg-foreground text-background rounded-2xl rounded-tr-none"
+                           ? "px-3 py-2 bg-foreground text-background rounded-2xl rounded-tr-none"
                               : "px-3 py-2 glass-card rounded-2xl rounded-tl-none shadow-none"
                     } ${isHighlighted? "ring-2 ring-primary ring-offset-2" : ""}`}
                   >
@@ -369,7 +384,7 @@ export default function PrivateChat() {
                     {new Date(msg.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}
                     {mine && (
                       isMessageRead(msg.created_at)
-                      ? <CheckCheck className="inline-block w-3.5 h-3.5 mr-1 text-sky-500" strokeWidth={2.2} />
+                     ? <CheckCheck className="inline-block w-3.5 h-3.5 mr-1 text-sky-500" strokeWidth={2.2} />
                         : <Check className="inline-block w-3.5 h-3.5 mr-1 text-muted-foreground" strokeWidth={2.2} />
                     )}
                   </span>
@@ -402,7 +417,7 @@ export default function PrivateChat() {
                 onClick={() => {
                   const name = activeMsg.profile?.display_name || activeMsg.profile?.username || "—";
                   const preview = activeMsg.message_type === "text"
-                  ? activeMsg.content.slice(0, 60)
+                 ? activeMsg.content.slice(0, 60)
                     : activeMsg.message_type === "image"? "📷 صورة" : "🎙️ صوت";
                   setReplyTo({ id: activeMsg.id, name, preview, messageType: activeMsg.message_type });
                   setActionMsgId(null);
@@ -564,10 +579,10 @@ export default function PrivateChat() {
             placeholder="رسالة مشفرة..."
             disabled={sending ||!profile}
             dir="rtl"
-            className="flex-1 h-12 px-5 rounded-full bg-primary/50 border-white/60 placeholder:text-foreground/40 focus:border-white outline-none text-sm transition min-w-0 text-right"
+            className="flex-1 h-12 px-5 rounded-full bg-background/70 border border-white/60 placeholder:text-foreground/40 focus:border-white outline-none text-sm transition min-w-0 text-right"
           />
         </form>
       </div>
     </div>
   );
-    }
+      }
