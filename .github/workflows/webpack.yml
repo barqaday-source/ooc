@@ -1,40 +1,72 @@
 name: Build Debug APK
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
-    # احذف paths نهائياً عشان يبني على كل تغيير
-  workflow_dispatch: # تقدر تشغله يدوي من GitHub
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    
     steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: true # يمسح أي ملفات قديمة قبل لا يبدأ
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Build web
+
+      - name: Clean npm cache
+        run: npm cache clean --force
+
+      - name: Remove node_modules and lock
+        run: |
+          rm -rf node_modules
+          rm -f package-lock.json
+
+      - name: Install dependencies from scratch
+        run: npm install
+
+      - name: Build web assets
         run: npm run build
-        
-      - name: Setup Java
+        env:
+          CI: false # يتجاهل التحذيرات و يكمل
+
+      - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-          
-      - name: Build APK
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Clean Gradle
         run: |
           cd android
-          ./gradlew assembleDebug
-          
-      - uses: actions/upload-artifact@v4
+          chmod +x gradlew
+          ./gradlew clean
+
+      - name: Build Debug APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: app-debug-${{ github.run_number }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
