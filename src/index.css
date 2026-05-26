@@ -25,6 +25,11 @@
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
     --gradient-bg: linear-gradient(180deg, #F8FAFF 0%, #FFFFFF 100%);
+    /* مساحات آمنة للأندرويد */
+    --sat: env(safe-area-inset-top, 0px);
+    --sar: env(safe-area-inset-right, 0px); 
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
   }
 
   .dark {
@@ -54,62 +59,82 @@
     * {
     @apply border-border;
     -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
   }
   
-  html, body {
+  html {
+    height: 100% !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+  }
+
+  body {
     @apply bg-background text-foreground;
     height: 100% !important;
     width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     position: fixed !important;
     overflow: hidden !important;
     overscroll-behavior: none !important;
     -webkit-overflow-scrolling: touch;
+    /* يرفع التطبيق فوق شريط الجوال العلوي */
+    padding-top: var(--sat) !important;
   }
 
   #root {
-    height: 100dvh !important;
+    height: calc(100dvh - var(--sat)) !important;
     width: 100vw !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     position: relative !important;
     background: var(--gradient-bg);
-    padding-top: env(safe-area-inset-top) !important;
+    /* يمنع التمطط والسحب */
+    overscroll-behavior-y: contain !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
-  /* منع التحديد والسحب */
+  /* منع التحديد والسحب على كل شي */
     * {
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
   }
 
-  input, textarea {
+  /* السماح بالكتابة بس في الحقول */
+  input, textarea, [contenteditable="true"] {
     -webkit-user-select: text !important;
     user-select: text !important;
   }
 }
 
 @layer components {
-  /* الشريط السفلي الثابت */
+  /* الشريط السفلي الثابت - قسري ومستحيل ينزل */
   .bottom-nav-container {
     position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
     z-index: 99999 !important;
-    height: 56px !important;
-    padding-bottom: env(safe-area-inset-bottom) !important;
+    height: 64px !important;
+    padding-bottom: var(--sab) !important;
+    padding-left: var(--sal) !important;
+    padding-right: var(--sar) !important;
     background: #FFFFFF !important;
     border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08) !important;
     transform: translateZ(0) !important;
+    will-change: transform !important;
+    backface-visibility: hidden !important;
   }
 
-  /* مساحة فاضية فوق الشريط */
+  /* مساحة فاضية فوق الشريط عشان المحتوى ما يختفي */
   .bottom-nav-spacer {
-    height: calc(56px + env(safe-area-inset-bottom)) !important;
+    height: calc(64px + var(--sab)) !important;
     width: 100% !important;
     flex-shrink: 0 !important;
+    pointer-events: none !important;
   }
 
   /* الهيدر الثابت فوق */
@@ -118,8 +143,16 @@
     top: 0 !important;
     z-index: 9999 !important;
     background: var(--gradient-bg) !important;
-    padding-top: calc(8px + env(safe-area-inset-top)) !important;
+    padding-top: 8px !important;
     padding-bottom: 8px !important;
+    padding-left: var(--sal) !important;
+    padding-right: var(--sar) !important;
+  }
+
+  /* حاوية المحادثة - عشان الرسائل ما تختفي تحت الشريط */
+  .chat-messages-wrapper {
+    padding-bottom: calc(64px + var(--sab) + 16px) !important;
+    min-height: 100% !important;
   }
 
   /* منع التمطط والسحب */
@@ -127,4 +160,19 @@
     overscroll-behavior-y: contain !important;
     -webkit-overflow-scrolling: touch !important;
   }
-      }
+
+  /* شريط الكتابة حق المحادثة */
+  .chat-input-bar {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 99998 !important;
+    padding-bottom: calc(8px + var(--sab)) !important;
+    padding-top: 8px !important;
+    padding-left: calc(12px + var(--sal)) !important;
+    padding-right: calc(12px + var(--sar)) !important;
+    background: #FFFFFF !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+  }
+}
