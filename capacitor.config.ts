@@ -7,18 +7,12 @@ const config: CapacitorConfig = {
   bundledWebRuntime: false,
   plugins: {
     Keyboard: {
-      resize: 'none', // مهم: يمنع التطبيق يتمطط مع الكيبورد
-      style: 'dark',
-      resizeOnFullScreen: true
-    },
-    SplashScreen: {
-      launchShowDuration: 0
+      resize: 'none', // هذا اللي يمنع التمطيط
     }
   },
   android: {
     allowMixedContent: true,
-    captureInput: true,
-    webContentsDebuggingEnabled: false
+    backgroundColor: '#FFFFFF' // هذا يخلي الخلفية بيضاء تحت الشريط
   }
 };
 
